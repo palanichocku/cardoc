@@ -19,6 +19,17 @@ npm run lint
 npm run build
 ```
 
-The current project contains framework scaffolding and a generic landing page
-only. Authentication, persistence, and legacy data import are intentionally not
-included yet.
+## Initial shop setup
+
+After the shop fields have been migrated, run the idempotent setup seed:
+
+~~~bash
+npm run db:seed
+~~~
+
+The seed creates or updates only the configured Car Doc shop. It does not add
+customers, vehicles, invoices, or legacy data.
+
+The current project includes the application shell, Supabase authentication
+foundation, and Prisma schema. Legacy data import is intentionally not included
+yet.
