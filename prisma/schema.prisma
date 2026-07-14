@@ -1,4 +1,10 @@
 generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Plain Node.js maintenance scripts currently consume this packaged client.
+generator scriptClient {
   provider = "prisma-client-js"
 }
 
