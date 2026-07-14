@@ -40,10 +40,29 @@ export async function getVehiclesForCurrentShop(search?: string, page = 1) {
       model: true,
       vin: true,
       licensePlate: true,
+      odometer: true,
     },
   });
 
   return { vehicles: vehicles.slice(0, 50), hasNext: vehicles.length > 50 };
+}
+
+export async function getVehicleForEdit(id: string) {
+  const { membership } = await getCurrentMembership();
+  if (!membership) return null;
+
+  return prisma.vehicle.findFirst({
+    where: { id, shopId: membership.shopId },
+    select: {
+      id: true,
+      year: true,
+      make: true,
+      model: true,
+      licensePlate: true,
+      vin: true,
+      odometer: true,
+    },
+  });
 }
 
 export async function getVehicleForCurrentShop(id: string) {
@@ -65,6 +84,7 @@ export async function getVehicleForCurrentShop(id: string) {
       model: true,
       vin: true,
       licensePlate: true,
+      odometer: true,
       legacyCarno: true,
       customer: {
         select: {

@@ -55,6 +55,10 @@ export async function getCustomerForCurrentShop(id: string) {
       displayName: true,
       email: true,
       phone: true,
+      addressLine1: true,
+      city: true,
+      state: true,
+      postalCode: true,
       legacyCustno: true,
       vehicles: {
         orderBy: [{ year: "desc" }, { make: "asc" }, { model: "asc" }],
@@ -80,6 +84,25 @@ export async function getCustomerForCurrentShop(id: string) {
           },
         },
       },
+    },
+  });
+}
+
+export async function getCustomerForEdit(id: string) {
+  const { membership } = await getCurrentMembership();
+  if (!membership) return null;
+
+  return prisma.customer.findFirst({
+    where: { id, shopId: membership.shopId },
+    select: {
+      id: true,
+      displayName: true,
+      phone: true,
+      email: true,
+      addressLine1: true,
+      city: true,
+      state: true,
+      postalCode: true,
     },
   });
 }

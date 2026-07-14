@@ -30,13 +30,16 @@ export default async function CustomerDetailPage({
       >
         ← Customers
       </Link>
-      <header className="mt-5">
+      <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
         <p className="text-sm font-semibold uppercase tracking-wider text-sky-700">
           Customer
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
           {customer.displayName}
         </h1>
+        </div>
+        <Link href={`/customers/${customer.id}/edit`} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Edit customer</Link>
       </header>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -61,7 +64,10 @@ export default async function CustomerDetailPage({
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Address</h2>
           <p className="mt-5 text-sm leading-6 text-slate-600">
-            Not imported yet
+            {customer.addressLine1 ?? "Not recorded"}<br />
+            {[customer.city, customer.state, customer.postalCode]
+              .filter(Boolean)
+              .join(", ") || "City and state not recorded"}
           </p>
         </article>
       </section>

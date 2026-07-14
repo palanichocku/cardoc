@@ -29,13 +29,16 @@ export default async function VehicleDetailPage({
       >
         ← Vehicles
       </Link>
-      <header className="mt-5">
+      <header className="mt-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
         <p className="text-sm font-semibold uppercase tracking-wider text-sky-700">
           Vehicle
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
           {description}
         </h1>
+        </div>
+        <Link href={`/vehicles/${vehicle.id}/edit`} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white">Edit vehicle</Link>
       </header>
 
       <section className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -55,7 +58,7 @@ export default async function VehicleDetailPage({
               {vehicle.licensePlate ?? "Not recorded"}
             </dd>
             <dt className="text-slate-500">Odometer</dt>
-            <dd className="text-slate-900">Not imported yet</dd>
+            <dd className="text-slate-900">{vehicle.odometer?.toLocaleString() ?? "Not recorded"}</dd>
             <dt className="text-slate-500">Legacy ID</dt>
             <dd className="text-slate-900">
               {vehicle.legacyCarno ?? "Not recorded"}
