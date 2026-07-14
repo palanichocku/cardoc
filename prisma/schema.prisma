@@ -45,6 +45,8 @@ model Shop {
   rawLegacyFinal      RawLegacyFinal[]
   rawLegacyLaborFinal RawLegacyLaborFinal[]
   rawLegacyAr         RawLegacyAr[]
+  rawLegacyOrderParts RawLegacyOrderPart[]
+  rawLegacyOrderLabor RawLegacyOrderLabor[]
   legacyImportRuns    LegacyImportRun[]
   legacyImportErrors  LegacyImportError[]
 
@@ -138,6 +140,10 @@ model RepairOrder {
   odometer           Int?
   concern            String?
   notes              String?
+  partsTotal         Decimal            @default(0) @map("parts_total") @db.Decimal(12, 2)
+  laborTotal         Decimal            @default(0) @map("labor_total") @db.Decimal(12, 2)
+  taxTotal           Decimal            @default(0) @map("tax_total") @db.Decimal(12, 2)
+  estimatedTotal     Decimal            @default(0) @map("estimated_total") @db.Decimal(12, 2)
   legacyRoNo         String?            @map("legacy_ro_no")
   legacySourceTable  String?            @map("legacy_source_table")
   createdAt          DateTime           @default(now()) @map("created_at")
@@ -166,6 +172,7 @@ model RepairOrderPart {
   partNumber        String?     @map("part_number")
   quantity          Decimal     @default(1) @db.Decimal(10, 2)
   unitPrice         Decimal     @default(0) @map("unit_price") @db.Decimal(12, 2)
+  legacyLineKey     String      @map("legacy_line_key")
   legacyRoNo        String?     @map("legacy_ro_no")
   legacySourceTable String?     @map("legacy_source_table")
   createdAt         DateTime    @default(now()) @map("created_at")
@@ -173,6 +180,7 @@ model RepairOrderPart {
   shop              Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairOrder       RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
 
+  @@unique([shopId, legacyLineKey])
   @@index([repairOrderId])
   @@index([shopId, legacyRoNo])
   @@map("repair_order_parts")
@@ -185,6 +193,7 @@ model RepairOrderLabor {
   description       String
   hours             Decimal     @default(0) @db.Decimal(8, 2)
   hourlyRate        Decimal     @default(0) @map("hourly_rate") @db.Decimal(12, 2)
+  legacyLineKey     String      @map("legacy_line_key")
   legacyRoNo        String?     @map("legacy_ro_no")
   legacySourceTable String?     @map("legacy_source_table")
   createdAt         DateTime    @default(now()) @map("created_at")
@@ -192,6 +201,7 @@ model RepairOrderLabor {
   shop              Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairOrder       RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
 
+  @@unique([shopId, legacyLineKey])
   @@index([repairOrderId])
   @@index([shopId, legacyRoNo])
   @@map("repair_order_labor")
@@ -360,6 +370,8 @@ model LegacyImportRun {
   rawFinal         RawLegacyFinal[]
   rawLaborFinal    RawLegacyLaborFinal[]
   rawAr            RawLegacyAr[]
+  rawOrderParts    RawLegacyOrderPart[]
+  rawOrderLabor    RawLegacyOrderLabor[]
 
   @@index([shopId, createdAt])
   @@map("legacy_import_runs")
@@ -449,6 +461,48 @@ model RawLegacyAr {
   @@index([shopId, legacyCustno])
   @@index([legacyImportRunId])
   @@map("raw_legacy_ar")
+}
+
+model RawLegacyOrderPart {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  legacyRowKey      String          @map("legacy_row_key")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyRowKey])
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([shopId, legacyCarno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_order_parts")
+}
+
+model RawLegacyOrderLabor {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  legacyRowKey      String          @map("legacy_row_key")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyRowKey])
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([shopId, legacyCarno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_order_labor")
 }
 
 model LegacyImportError {
