@@ -8,7 +8,7 @@ export async function getRepairOrderFormOptions() {
   if (!membership) return [];
 
   return prisma.customer.findMany({
-    where: { shopId: membership.shopId, vehicles: { some: {} } },
+    where: { shopId: membership.shopId },
     orderBy: { displayName: "asc" },
     select: {
       id: true,

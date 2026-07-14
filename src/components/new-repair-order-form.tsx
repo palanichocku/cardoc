@@ -21,6 +21,9 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
   const [vehicleId, setVehicleId] = useState(
     initialCustomer?.vehicles[0]?.id ?? "",
   );
+  const [vehicleMode, setVehicleMode] = useState<"existing" | "new">(
+    initialCustomer?.vehicles.length ? "existing" : "new",
+  );
   const vehicles = useMemo(
     () => customers.find((customer) => customer.id === customerId)?.vehicles ?? [],
     [customerId, customers],
@@ -32,6 +35,7 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
     );
     setCustomerId(nextCustomerId);
     setVehicleId(nextCustomer?.vehicles[0]?.id ?? "");
+    setVehicleMode(nextCustomer?.vehicles.length ? "existing" : "new");
   }
 
   return (
@@ -42,9 +46,13 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
           {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.displayName}</option>)}
         </select>
       </div>
-      <div>
-        <label htmlFor="vehicleId" className="block text-sm font-semibold text-slate-800">Vehicle</label>
-        <select id="vehicleId" name="vehicleId" required disabled={!vehicles.length} value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 disabled:bg-slate-100">
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-slate-800">Vehicle</legend>
+        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="existing" checked={vehicleMode === "existing"} disabled={!vehicles.length} onChange={() => setVehicleMode("existing")} />Select existing vehicle</label>
+          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="new" checked={vehicleMode === "new"} onChange={() => setVehicleMode("new")} />Add new vehicle</label>
+        </div>
+        {vehicleMode === "existing" ? <select id="vehicleId" name="vehicleId" aria-label="Existing vehicle" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900">
           {vehicles.map((vehicle) => {
             const description = [vehicle.year, vehicle.make, vehicle.model]
               .filter(Boolean)
@@ -54,10 +62,18 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
               : description;
             return <option key={vehicle.id} value={vehicle.id}>{label}</option>;
           })}
-        </select>
-      </div>
+        </select> : <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-800">Year<input name="year" type="number" min="1886" max={new Date().getFullYear() + 1} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Make<input name="make" type="text" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Model<input name="model" type="text" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">License plate <span className="font-normal text-slate-500">(optional)</span><input name="licensePlate" type="text" maxLength={30} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">VIN <span className="font-normal text-slate-500">(optional)</span><input name="vin" type="text" maxLength={50} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Mileage <span className="font-normal text-slate-500">(optional)</span><input name="mileage" type="number" min="0" max="10000000" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        </div>}
+      </fieldset>
+      <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">Need a new customer? New customer creation is coming later.</p>
       <p className="text-sm text-slate-600">This creates a draft only. Parts, labor, and invoice finalization are not included yet.</p>
-      <button type="submit" disabled={!customerId || !vehicleId} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+      <button type="submit" disabled={!customerId || (vehicleMode === "existing" && !vehicleId)} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
     </form>
   );
 }
