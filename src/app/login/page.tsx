@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
@@ -17,37 +18,11 @@ export default function LoginPage() {
           Sign in to Car Doc
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Use the placeholder form to preview the application shell.
+          Enter your shop account credentials to continue.
         </p>
-
-        <form className="mt-8 space-y-5">
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Email</span>
-            <input
-              type="email"
-              name="email"
-              placeholder="you@example.com"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-950 outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">Password</span>
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter your password"
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-950 outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-            />
-          </label>
-          <Link
-            href="/dashboard"
-            className="flex w-full items-center justify-center rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700"
-          >
-            Continue to dashboard
-          </Link>
-        </form>
+        <LoginForm />
         <p className="mt-6 text-center text-xs leading-5 text-slate-500">
-          Authentication is not connected in this initial shell.
+          Contact your administrator if you need access.
         </p>
       </section>
     </main>

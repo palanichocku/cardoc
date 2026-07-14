@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { DesktopNavigation, MobileNavigation } from "./app-navigation";
+import { signOut } from "@/app/(app)/actions";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  userEmail,
+}: {
+  children: React.ReactNode;
+  userEmail: string;
+}) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white lg:hidden">
@@ -9,12 +16,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-lg font-bold tracking-tight">
             Car Doc
           </Link>
-          <Link
-            href="/login"
+          <form action={signOut}>
+            <button
+              type="submit"
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
-          >
-            Sign out
-          </Link>
+            >
+              Sign out
+            </button>
+          </form>
         </div>
         <MobileNavigation />
       </header>
@@ -33,14 +42,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <DesktopNavigation />
 
         <div className="mt-auto border-t border-slate-200 pt-5">
-          <p className="text-sm font-medium text-slate-900">Demo Shop</p>
-          <p className="mt-1 text-xs text-slate-500">Placeholder workspace</p>
-          <Link
-            href="/login"
-            className="mt-4 inline-block text-sm font-medium text-slate-600 hover:text-slate-950"
-          >
-            Sign out
-          </Link>
+          <p className="truncate text-sm font-medium text-slate-900">
+            {userEmail}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Signed in</p>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="mt-4 text-sm font-medium text-slate-600 hover:text-slate-950"
+            >
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 
