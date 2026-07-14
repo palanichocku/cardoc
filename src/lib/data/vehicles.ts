@@ -24,3 +24,37 @@ export async function getVehiclesForCurrentShop() {
     },
   });
 }
+
+export async function getVehicleForCurrentShop(id: string) {
+  const { membership } = await getCurrentMembership();
+
+  if (!membership) {
+    return null;
+  }
+
+  return prisma.vehicle.findFirst({
+    where: {
+      id,
+      shopId: membership.shopId,
+    },
+    select: {
+      id: true,
+      year: true,
+      make: true,
+      model: true,
+      engine: true,
+      vin: true,
+      licensePlate: true,
+      odometer: true,
+      legacyCarno: true,
+      customer: {
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  });
+}

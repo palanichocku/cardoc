@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeading } from "@/components/page-heading";
 import { getVehiclesForCurrentShop } from "@/lib/data/vehicles";
 
@@ -46,17 +47,19 @@ export default async function VehiclesPage() {
                   .join(" ") || "Unnamed vehicle";
 
               return (
-                <li
-                  key={vehicle.id}
+                <li key={vehicle.id}>
+                  <Link
+                    href={`/vehicles/${vehicle.id}`}
                   className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
-                >
-                  <p className="font-semibold text-slate-950">{description}</p>
-                  <p className="truncate text-sm text-slate-600">
-                    VIN: {vehicle.vin ?? "Not recorded"}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Plate: {vehicle.licensePlate ?? "Not recorded"}
-                  </p>
+                  >
+                    <p className="font-semibold text-slate-950">{description}</p>
+                    <p className="truncate text-sm text-slate-600">
+                      VIN: {vehicle.vin ?? "Not recorded"}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Plate: {vehicle.licensePlate ?? "Not recorded"}
+                    </p>
+                  </Link>
                 </li>
               );
             })}
