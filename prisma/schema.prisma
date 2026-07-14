@@ -13,31 +13,34 @@ enum ShopMembershipRole {
 }
 
 model Shop {
-  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name               String
-  addressLine1       String?             @map("address_line1")
-  city               String?
-  state              String?
-  postalCode         String?             @map("postal_code")
-  phone              String?
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at")
-  customers          Customer[]
-  vehicles           Vehicle[]
-  repairOrders       RepairOrder[]
-  repairOrderParts   RepairOrderPart[]
-  repairOrderLabor   RepairOrderLabor[]
-  invoices           Invoice[]
-  invoiceParts       InvoicePart[]
-  invoiceLabor       InvoiceLabor[]
-  payments           Payment[]
-  accountsReceivable AccountReceivable[]
-  employees          Employee[]
-  memberships        ShopMembership[]
-  rawLegacyCustomers RawLegacyCustomer[]
-  rawLegacyVehicles  RawLegacyVehicle[]
-  legacyImportRuns   LegacyImportRun[]
-  legacyImportErrors LegacyImportError[]
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  addressLine1        String?               @map("address_line1")
+  city                String?
+  state               String?
+  postalCode          String?               @map("postal_code")
+  phone               String?
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at")
+  customers           Customer[]
+  vehicles            Vehicle[]
+  repairOrders        RepairOrder[]
+  repairOrderParts    RepairOrderPart[]
+  repairOrderLabor    RepairOrderLabor[]
+  invoices            Invoice[]
+  invoiceParts        InvoicePart[]
+  invoiceLabor        InvoiceLabor[]
+  payments            Payment[]
+  accountsReceivable  AccountReceivable[]
+  employees           Employee[]
+  memberships         ShopMembership[]
+  rawLegacyCustomers  RawLegacyCustomer[]
+  rawLegacyVehicles   RawLegacyVehicle[]
+  rawLegacyFinal      RawLegacyFinal[]
+  rawLegacyLaborFinal RawLegacyLaborFinal[]
+  rawLegacyAr         RawLegacyAr[]
+  legacyImportRuns    LegacyImportRun[]
+  legacyImportErrors  LegacyImportError[]
 
   @@map("shops")
 }
@@ -325,21 +328,24 @@ model Employee {
 }
 
 model LegacyImportRun {
-  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  shopId           String              @map("shop_id") @db.Uuid
-  status           String              @default("pending")
-  sourceLabel      String              @map("source_label")
-  startedAt        DateTime?           @map("started_at")
-  completedAt      DateTime?           @map("completed_at")
-  recordsProcessed Int                 @default(0) @map("records_processed")
-  recordsImported  Int                 @default(0) @map("records_imported")
-  recordsFailed    Int                 @default(0) @map("records_failed")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
-  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId           String                @map("shop_id") @db.Uuid
+  status           String                @default("pending")
+  sourceLabel      String                @map("source_label")
+  startedAt        DateTime?             @map("started_at")
+  completedAt      DateTime?             @map("completed_at")
+  recordsProcessed Int                   @default(0) @map("records_processed")
+  recordsImported  Int                   @default(0) @map("records_imported")
+  recordsFailed    Int                   @default(0) @map("records_failed")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
+  shop             Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
   errors           LegacyImportError[]
   rawCustomers     RawLegacyCustomer[]
   rawVehicles      RawLegacyVehicle[]
+  rawFinal         RawLegacyFinal[]
+  rawLaborFinal    RawLegacyLaborFinal[]
+  rawAr            RawLegacyAr[]
 
   @@index([shopId, createdAt])
   @@map("legacy_import_runs")
@@ -375,6 +381,60 @@ model RawLegacyVehicle {
   @@index([shopId, legacyCarno])
   @@index([legacyImportRunId])
   @@map("raw_legacy_vehicles")
+}
+
+model RawLegacyFinal {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_final")
+}
+
+model RawLegacyLaborFinal {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_labor_final")
+}
+
+model RawLegacyAr {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_ar")
 }
 
 model LegacyImportError {
