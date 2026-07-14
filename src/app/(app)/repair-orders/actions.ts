@@ -135,6 +135,6 @@ export async function createRepairOrder(formData: FormData) {
     });
   }, { isolationLevel: "Serializable" });
 
-  revalidatePath("/open-orders");
+  revalidatePath("/repair-orders");
   redirect(`/repair-orders/${repairOrder.id}`);
 }

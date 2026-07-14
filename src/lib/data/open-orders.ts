@@ -16,6 +16,7 @@ export async function getOpenOrdersForCurrentShop() {
       legacyRoNo: true,
       repairOrderNumber: true,
       legacySourceTable: true,
+      status: true,
       openedAt: true,
       estimatedTotal: true,
       customer: { select: { displayName: true } },

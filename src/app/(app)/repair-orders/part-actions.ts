@@ -32,7 +32,7 @@ async function editableOrder(shopId: string, repairOrderId: string) {
     where: {
       id: repairOrderId,
       shopId,
-      status: "draft",
+      status: { in: ["draft", "open"] },
       legacySourceTable: null,
     },
     select: { id: true },
@@ -50,7 +50,7 @@ async function refreshPartsTotal(
       where: {
         id: repairOrderId,
         shopId,
-        status: "draft",
+        status: { in: ["draft", "open"] },
         legacySourceTable: null,
       },
       select: { laborTotal: true, taxTotal: true },
