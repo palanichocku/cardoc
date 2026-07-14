@@ -8,12 +8,14 @@ export async function getOpenOrdersForCurrentShop() {
   if (!membership) return [];
 
   return prisma.repairOrder.findMany({
-    where: { shopId: membership.shopId, status: "open" },
+    where: { shopId: membership.shopId, status: { in: ["draft", "open"] } },
     orderBy: [{ openedAt: "desc" }, { createdAt: "desc" }],
     take: 50,
     select: {
       id: true,
       legacyRoNo: true,
+      repairOrderNumber: true,
+      legacySourceTable: true,
       openedAt: true,
       estimatedTotal: true,
       customer: { select: { displayName: true } },

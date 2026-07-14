@@ -9,6 +9,7 @@ const navigation = [
   { href: "/vehicles", label: "Vehicles", shortLabel: "V" },
   { href: "/invoices", label: "Invoices", shortLabel: "I" },
   { href: "/open-orders", label: "Open Orders", shortLabel: "O" },
+  { href: "/repair-orders/new", label: "New Repair Order", shortLabel: "+" },
   { href: "/settings", label: "Settings", shortLabel: "S" },
 ];
 

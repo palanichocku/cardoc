@@ -26,6 +26,7 @@ model Shop {
   state               String?
   postalCode          String?               @map("postal_code")
   phone               String?
+  nextRepairOrderNumber Int                   @default(1) @map("next_repair_order_number")
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at")
   customers           Customer[]
@@ -144,6 +145,7 @@ model RepairOrder {
   laborTotal         Decimal            @default(0) @map("labor_total") @db.Decimal(12, 2)
   taxTotal           Decimal            @default(0) @map("tax_total") @db.Decimal(12, 2)
   estimatedTotal     Decimal            @default(0) @map("estimated_total") @db.Decimal(12, 2)
+  repairOrderNumber  Int?               @map("repair_order_number")
   legacyRoNo         String?            @map("legacy_ro_no")
   legacySourceTable  String?            @map("legacy_source_table")
   createdAt          DateTime           @default(now()) @map("created_at")
@@ -157,6 +159,7 @@ model RepairOrder {
   invoices           Invoice[]
 
   @@unique([shopId, legacyRoNo])
+  @@unique([shopId, repairOrderNumber])
   @@index([legacyRoNo])
   @@index([shopId, status])
   @@index([customerId])
