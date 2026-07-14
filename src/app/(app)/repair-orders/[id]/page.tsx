@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getWebRepairOrderForCurrentShop } from "@/lib/data/repair-orders";
-import { formatDate } from "@/lib/formatters";
+import { formatDate, formatMoney } from "@/lib/formatters";
+import {
+  addLaborLine,
+  deleteLaborLine,
+  updateLaborLine,
+} from "../labor-actions";
+
+type RepairOrder = NonNullable<
+  Awaited<ReturnType<typeof getWebRepairOrderForCurrentShop>>
+>;
+type LaborLine = RepairOrder["labor"][number];
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +24,26 @@ export default async function RepairOrderPage({ params }: { params: Promise<{ id
   return <div className="space-y-6">
     <header><Link href="/open-orders" className="text-sm font-semibold text-sky-700">← Open Orders</Link><div className="mt-4 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold text-slate-950">RO #{order.repairOrderNumber}</h1><span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase text-sky-800">{order.status}</span></div><p className="mt-2 text-sm text-slate-600">Created {formatDate(order.openedAt)}</p></header>
     <div className="grid gap-4 md:grid-cols-2"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="font-semibold text-slate-950">Customer</h2><Link href={`/customers/${order.customer.id}`} className="mt-3 block font-medium text-sky-700">{order.customer.displayName}</Link></section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="font-semibold text-slate-950">Vehicle</h2><Link href={`/vehicles/${order.vehicle.id}`} className="mt-3 block font-medium text-sky-700">{vehicle || "Vehicle details unavailable"}</Link></section></div>
-    <div className="grid gap-4 md:grid-cols-2"><section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6"><h2 className="font-semibold text-slate-950">Parts</h2><p className="mt-2 text-sm text-slate-600">No parts added yet.</p></section><section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6"><h2 className="font-semibold text-slate-950">Labor</h2><p className="mt-2 text-sm text-slate-600">No labor added yet.</p></section></div>
+    <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-6"><h2 className="font-semibold text-slate-950">Parts</h2><p className="mt-2 text-sm text-slate-600">No parts added yet.</p></section>
+    <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-4"><div><h2 className="font-semibold text-slate-950">Labor</h2><p className="mt-1 text-sm text-slate-600">Amount is calculated from hours × rate.</p></div><p className="font-semibold text-slate-950">{formatMoney(order.laborTotal)}</p></div>
+      {order.labor.length ? <div className="space-y-3">{order.labor.map((line: LaborLine) => <form key={line.id} action={updateLaborLine} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_7rem_8rem_auto] md:items-end">
+        <input type="hidden" name="repairOrderId" value={order.id} /><input type="hidden" name="laborLineId" value={line.id} />
+        <label className="text-sm font-semibold text-slate-700">Description<input name="description" required maxLength={500} defaultValue={line.description} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-semibold text-slate-700">Hours<input name="hours" type="number" required min="0.01" max="1000" step="0.01" defaultValue={line.hours.toString()} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-semibold text-slate-700">Rate<input name="hourlyRate" type="number" required min="0" max="1000000" step="0.01" defaultValue={line.hourlyRate.toString()} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <div className="flex gap-2"><button type="submit" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Update</button><button type="submit" formAction={deleteLaborLine} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Delete</button></div>
+        <p className="text-sm text-slate-600 md:col-start-3 md:text-right">Amount {formatMoney(Number(line.hours) * Number(line.hourlyRate))}</p>
+      </form>)}</div> : <p className="text-sm text-slate-600">No labor added yet.</p>}
+      <form action={addLaborLine} className="grid gap-3 border-t border-slate-200 pt-5 md:grid-cols-[1fr_7rem_8rem_auto] md:items-end">
+        <input type="hidden" name="repairOrderId" value={order.id} />
+        <label className="text-sm font-semibold text-slate-700">Description<input name="description" required maxLength={500} placeholder="Labor description" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-semibold text-slate-700">Hours<input name="hours" type="number" required min="0.01" max="1000" step="0.01" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-semibold text-slate-700">Rate<input name="hourlyRate" type="number" required min="0" max="1000000" step="0.01" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <button type="submit" className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Add labor</button>
+      </form>
+    </section>
+    <section className="ml-auto max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><dl className="space-y-3 text-sm"><div className="flex justify-between"><dt className="text-slate-600">Labor total</dt><dd className="font-medium text-slate-950">{formatMoney(order.laborTotal)}</dd></div><div className="flex justify-between border-t border-slate-200 pt-3 text-base font-bold"><dt>Draft total</dt><dd>{formatMoney(order.estimatedTotal)}</dd></div></dl></section>
     <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Draft repair order only. Invoice finalization is not available.</p>
   </div>;
 }

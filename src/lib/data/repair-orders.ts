@@ -43,10 +43,20 @@ export async function getWebRepairOrderForCurrentShop(id: string) {
       repairOrderNumber: true,
       status: true,
       openedAt: true,
+      laborTotal: true,
+      estimatedTotal: true,
       customer: { select: { id: true, displayName: true } },
       vehicle: { select: { id: true, year: true, make: true, model: true } },
       parts: { select: { id: true } },
-      labor: { select: { id: true } },
+      labor: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          description: true,
+          hours: true,
+          hourlyRate: true,
+        },
+      },
     },
   });
 }

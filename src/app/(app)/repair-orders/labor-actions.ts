@@ -1,0 +1,122 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import type { Prisma } from "@/generated/prisma/client";
+import { getCurrentMembership } from "@/lib/data/membership";
+import { prisma } from "@/lib/prisma";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function laborValues(formData: FormData) {
+  const description = String(formData.get("description") ?? "").trim();
+  const hours = Number(formData.get("hours"));
+  const hourlyRate = Number(formData.get("hourlyRate"));
+  if (
+    !description || description.length > 500 || !Number.isFinite(hours) ||
+    hours <= 0 || hours > 1000 || !Number.isFinite(hourlyRate) ||
+    hourlyRate < 0 || hourlyRate > 1_000_000
+  ) {
+    throw new Error("Invalid labor line.");
+  }
+  return { description, hours: hours.toFixed(2), hourlyRate: hourlyRate.toFixed(2) };
+}
+
+async function editableOrder(shopId: string, repairOrderId: string) {
+  if (!UUID.test(repairOrderId)) throw new Error("Invalid repair order.");
+  const order = await prisma.repairOrder.findFirst({
+    where: { id: repairOrderId, shopId, status: "draft", legacySourceTable: null },
+    select: { id: true },
+  });
+  if (!order) throw new Error("Repair order is not editable.");
+  return order;
+}
+
+async function refreshLaborTotal(
+  transaction: Prisma.TransactionClient,
+  shopId: string,
+  repairOrderId: string,
+) {
+  const [order, lines] = await Promise.all([
+    transaction.repairOrder.findFirstOrThrow({
+      where: { id: repairOrderId, shopId, status: "draft", legacySourceTable: null },
+      select: { partsTotal: true, taxTotal: true },
+    }),
+    transaction.repairOrderLabor.findMany({
+      where: { repairOrderId, shopId },
+      select: { hours: true, hourlyRate: true },
+    }),
+  ]);
+  const laborTotal = lines.reduce(
+    (sum, line) => sum + Number(line.hours) * Number(line.hourlyRate),
+    0,
+  );
+  await transaction.repairOrder.update({
+    where: { id: repairOrderId },
+    data: {
+      laborTotal: laborTotal.toFixed(2),
+      estimatedTotal: (
+        Number(order.partsTotal) + laborTotal + Number(order.taxTotal)
+      ).toFixed(2),
+    },
+  });
+}
+
+export async function addLaborLine(formData: FormData) {
+  const repairOrderId = String(formData.get("repairOrderId") ?? "");
+  const values = laborValues(formData);
+  const { membership } = await getCurrentMembership();
+  if (!membership) throw new Error("Shop access is required.");
+  await editableOrder(membership.shopId, repairOrderId);
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.repairOrderLabor.create({
+      data: {
+        shopId: membership.shopId,
+        repairOrderId,
+        ...values,
+        legacyLineKey: `web:${randomUUID()}`,
+      },
+    });
+    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+  });
+  revalidatePath(`/repair-orders/${repairOrderId}`);
+}
+
+export async function updateLaborLine(formData: FormData) {
+  const repairOrderId = String(formData.get("repairOrderId") ?? "");
+  const laborLineId = String(formData.get("laborLineId") ?? "");
+  const values = laborValues(formData);
+  if (!UUID.test(laborLineId)) throw new Error("Invalid labor line.");
+  const { membership } = await getCurrentMembership();
+  if (!membership) throw new Error("Shop access is required.");
+  await editableOrder(membership.shopId, repairOrderId);
+
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.repairOrderLabor.updateMany({
+      where: { id: laborLineId, repairOrderId, shopId: membership.shopId },
+      data: values,
+    });
+    if (result.count !== 1) throw new Error("Labor line is not editable.");
+    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+  });
+  revalidatePath(`/repair-orders/${repairOrderId}`);
+}
+
+export async function deleteLaborLine(formData: FormData) {
+  const repairOrderId = String(formData.get("repairOrderId") ?? "");
+  const laborLineId = String(formData.get("laborLineId") ?? "");
+  if (!UUID.test(laborLineId)) throw new Error("Invalid labor line.");
+  const { membership } = await getCurrentMembership();
+  if (!membership) throw new Error("Shop access is required.");
+  await editableOrder(membership.shopId, repairOrderId);
+
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.repairOrderLabor.deleteMany({
+      where: { id: laborLineId, repairOrderId, shopId: membership.shopId },
+    });
+    if (result.count !== 1) throw new Error("Labor line is not editable.");
+    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+  });
+  revalidatePath(`/repair-orders/${repairOrderId}`);
+}
