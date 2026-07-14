@@ -4,6 +4,7 @@ import { formatDate, formatMoney } from "@/lib/formatters";
 type ServiceHistoryItem = {
   id: string;
   legacyRoNo: string | null;
+  repairOrderNumber: number | null;
   invoiceDate: Date | null;
   total: { toString(): string };
   vehicle?: {
@@ -51,7 +52,7 @@ export function ServiceHistory({
                 >
                   <span>
                     <span className="block font-semibold text-slate-950">
-                      RO #{invoice.legacyRoNo ?? "Not recorded"}
+                      RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}
                     </span>
                     <span className="text-sm text-slate-500">
                       {formatDate(invoice.invoiceDate)}

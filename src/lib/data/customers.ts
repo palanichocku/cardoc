@@ -72,6 +72,7 @@ export async function getCustomerForCurrentShop(id: string) {
         select: {
           id: true,
           legacyRoNo: true,
+          repairOrderNumber: true,
           invoiceDate: true,
           total: true,
           vehicle: {

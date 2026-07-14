@@ -93,7 +93,7 @@ export default async function InvoicesPage({
                   >
                     <span>
                       <span className="block font-semibold text-slate-950">
-                        RO #{invoice.legacyRoNo ?? "Not recorded"}
+                        RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}
                       </span>
                       <span className="text-sm text-slate-500">
                         {formatDate(invoice.invoiceDate)}

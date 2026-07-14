@@ -80,6 +80,7 @@ export async function getVehicleForCurrentShop(id: string) {
         select: {
           id: true,
           legacyRoNo: true,
+          repairOrderNumber: true,
           invoiceDate: true,
           total: true,
           customer: { select: { id: true, displayName: true } },

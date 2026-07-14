@@ -36,7 +36,7 @@ export async function getWebRepairOrderForCurrentShop(id: string) {
       id,
       shopId: membership.shopId,
       legacySourceTable: null,
-      status: { in: ["draft", "open"] },
+      status: { in: ["draft", "open", "finalized"] },
     },
     select: {
       id: true,

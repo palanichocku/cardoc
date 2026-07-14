@@ -7,6 +7,7 @@ import {
   formatLaborDescription,
   formatMoney,
 } from "@/lib/formatters";
+import { snapshotNumber, snapshotString } from "@/lib/invoice-snapshots";
 
 type PrintableInvoice = NonNullable<
   Awaited<ReturnType<typeof getInvoiceForCurrentShop>>
@@ -26,13 +27,24 @@ export default async function PrintableInvoicePage({
 
   if (!invoice) notFound();
 
-  const vehicle = invoice.vehicle
-    ? [invoice.vehicle.year, invoice.vehicle.make, invoice.vehicle.model]
+  const shopName = snapshotString(invoice.shopSnapshot, "name", invoice.shop.name);
+  const shopAddress = snapshotString(invoice.shopSnapshot, "addressLine1", invoice.shop.addressLine1);
+  const shopCity = snapshotString(invoice.shopSnapshot, "city", invoice.shop.city);
+  const shopState = snapshotString(invoice.shopSnapshot, "state", invoice.shop.state);
+  const shopPostalCode = snapshotString(invoice.shopSnapshot, "postalCode", invoice.shop.postalCode);
+  const shopPhone = snapshotString(invoice.shopSnapshot, "phone", invoice.shop.phone);
+  const customerName = snapshotString(invoice.customerSnapshot, "displayName", invoice.customer?.displayName ?? null);
+  const vehicleYear = snapshotNumber(invoice.vehicleSnapshot, "year", invoice.vehicle?.year ?? null);
+  const vehicleMake = snapshotString(invoice.vehicleSnapshot, "make", invoice.vehicle?.make ?? null);
+  const vehicleModel = snapshotString(invoice.vehicleSnapshot, "model", invoice.vehicle?.model ?? null);
+  const vehicleMileage = snapshotNumber(invoice.vehicleSnapshot, "odometer", invoice.vehicle?.odometer ?? null);
+  const vehicle = invoice.vehicleSnapshot || invoice.vehicle
+    ? [vehicleYear, vehicleMake, vehicleModel]
         .filter(Boolean)
         .join(" ") || "Vehicle details unavailable"
     : "Vehicle not linked";
   const receivable = invoice.accountsReceivable[0];
-  const locality = [invoice.shop.city, invoice.shop.state, invoice.shop.postalCode]
+  const locality = [shopCity, shopState, shopPostalCode]
     .filter(Boolean)
     .join(", ");
 
@@ -56,14 +68,14 @@ export default async function PrintableInvoicePage({
               Auto repair invoice
             </p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-              {invoice.shop.name}
+              {shopName}
             </h1>
             <address className="mt-4 text-sm not-italic leading-6 text-slate-600">
               <span className="block">
-                {invoice.shop.addressLine1 ?? "Address unavailable"}
+                {shopAddress ?? "Address unavailable"}
               </span>
               <span className="block">{locality || "City and state unavailable"}</span>
-              <span className="block">{invoice.shop.phone ?? "Phone unavailable"}</span>
+              <span className="block">{shopPhone ?? "Phone unavailable"}</span>
             </address>
           </div>
 
@@ -72,7 +84,7 @@ export default async function PrintableInvoicePage({
               Repair order
             </p>
             <p className="mt-2 text-2xl font-black">
-              #{invoice.legacyRoNo ?? "Not recorded"}
+              #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}
             </p>
             <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm sm:grid-cols-[1fr_auto]">
               <dt className="text-slate-400 print:text-slate-500">Invoice date</dt>
@@ -86,14 +98,14 @@ export default async function PrintableInvoicePage({
         <section className="grid gap-4 py-7 sm:grid-cols-2">
           <InfoCard title="Customer">
             <p className="font-bold text-slate-950">
-              {invoice.customer?.displayName ?? "Customer unavailable"}
+              {customerName ?? "Customer unavailable"}
             </p>
           </InfoCard>
           <InfoCard title="Vehicle">
             <p className="font-bold text-slate-950">{vehicle}</p>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 text-sm">
               <dt className="text-slate-500">Mileage</dt>
-              <dd>{invoice.vehicle?.odometer?.toLocaleString() ?? "Not recorded"}</dd>
+              <dd>{vehicleMileage?.toLocaleString() ?? "Not recorded"}</dd>
             </dl>
           </InfoCard>
         </section>
@@ -177,7 +189,7 @@ export default async function PrintableInvoicePage({
 
         <footer className="mt-10 border-t border-slate-300 pt-5 text-center text-xs leading-5 text-slate-500">
           <p className="font-semibold text-slate-700">
-            Thank you for choosing {invoice.shop.name}.
+            Thank you for choosing {shopName}.
           </p>
           <p>Please retain this invoice for your service records.</p>
         </footer>

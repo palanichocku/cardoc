@@ -225,6 +225,10 @@ model Invoice {
   taxTotal           Decimal             @default(0) @map("tax_total") @db.Decimal(12, 2)
   total              Decimal             @default(0) @db.Decimal(12, 2)
   paidTotal          Decimal             @default(0) @map("paid_total") @db.Decimal(12, 2)
+  repairOrderNumber  Int?                @map("repair_order_number")
+  shopSnapshot       Json?               @map("shop_snapshot")
+  customerSnapshot   Json?               @map("customer_snapshot")
+  vehicleSnapshot    Json?               @map("vehicle_snapshot")
   legacyRoNo         String?             @map("legacy_ro_no")
   legacySourceTable  String?             @map("legacy_source_table")
   createdAt          DateTime            @default(now()) @map("created_at")
@@ -239,6 +243,8 @@ model Invoice {
   accountsReceivable AccountReceivable[]
 
   @@unique([shopId, legacyRoNo])
+  @@unique([repairOrderId])
+  @@unique([shopId, repairOrderNumber])
   @@index([legacyRoNo])
   @@index([shopId, invoiceDate])
   @@index([shopId, status])
@@ -329,6 +335,7 @@ model AccountReceivable {
   customer          Customer  @relation(fields: [customerId], references: [id])
 
   @@unique([shopId, legacyRoNo])
+  @@unique([invoiceId])
   @@index([shopId, status])
   @@index([customerId])
   @@index([shopId, legacyRoNo])

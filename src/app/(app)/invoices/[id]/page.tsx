@@ -41,7 +41,7 @@ export default async function InvoiceDetailPage({
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-sky-700">Invoice</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            RO #{invoice.legacyRoNo ?? "Not recorded"}
+            RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}
           </h1>
           <p className="mt-2 text-sm text-slate-600">{formatDate(invoice.invoiceDate)}</p>
         </div>

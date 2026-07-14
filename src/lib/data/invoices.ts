@@ -17,6 +17,9 @@ export async function getInvoicesForCurrentShop(search?: string, page = 1) {
         ? {
             OR: [
               { legacyRoNo: { contains: query, mode: "insensitive" as const } },
+              ...(/^\d+$/.test(query)
+                ? [{ repairOrderNumber: Number(query) }]
+                : []),
               {
                 customer: {
                   is: {
@@ -53,6 +56,7 @@ export async function getInvoicesForCurrentShop(search?: string, page = 1) {
     select: {
       id: true,
       legacyRoNo: true,
+      repairOrderNumber: true,
       invoiceDate: true,
       status: true,
       total: true,
@@ -80,6 +84,10 @@ export async function getInvoiceForCurrentShop(id: string) {
     select: {
       id: true,
       legacyRoNo: true,
+      repairOrderNumber: true,
+      shopSnapshot: true,
+      customerSnapshot: true,
+      vehicleSnapshot: true,
       invoiceDate: true,
       status: true,
       partsTotal: true,
