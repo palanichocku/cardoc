@@ -10,13 +10,18 @@ export async function getRepairOrderFormOptions() {
   return prisma.customer.findMany({
     where: { shopId: membership.shopId, vehicles: { some: {} } },
     orderBy: { displayName: "asc" },
-    take: 250,
     select: {
       id: true,
       displayName: true,
       vehicles: {
         orderBy: [{ year: "desc" }, { make: "asc" }, { model: "asc" }],
-        select: { id: true, year: true, make: true, model: true },
+        select: {
+          id: true,
+          year: true,
+          make: true,
+          model: true,
+          licensePlate: true,
+        },
       },
     },
   });
