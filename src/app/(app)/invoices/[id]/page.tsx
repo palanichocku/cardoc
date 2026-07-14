@@ -6,6 +6,7 @@ import {
   formatLaborDescription,
   formatMoney,
 } from "@/lib/formatters";
+import { recordPayment } from "../payment-actions";
 
 type InvoiceDetail = NonNullable<
   Awaited<ReturnType<typeof getInvoiceForCurrentShop>>
@@ -31,6 +32,13 @@ export default async function InvoiceDetailPage({
         .join(" ") || "Vehicle details unavailable"
     : null;
   const receivable = invoice.accountsReceivable[0];
+  const balance = Number(receivable?.balance ?? 0);
+  const canRecordPayment =
+    invoice.legacySourceTable === null &&
+    invoice.repairOrderNumber !== null &&
+    invoice.status === "finalized" &&
+    balance > 0;
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <>
@@ -96,6 +104,23 @@ export default async function InvoiceDetailPage({
           </dl>
         </article>
       </section>
+
+      {canRecordPayment ? (
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-950">Record payment</h2>
+          <p className="mt-2 text-sm text-slate-600">Payments cannot exceed the current balance of {formatMoney(receivable?.balance)}.</p>
+          <form action={recordPayment} className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:items-end">
+            <input type="hidden" name="invoiceId" value={invoice.id} />
+            <label className="text-sm font-semibold text-slate-700">Amount<input name="amount" type="number" required min="0.01" max={balance.toFixed(2)} step="0.01" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+            <label className="text-sm font-semibold text-slate-700">Method<select name="method" required defaultValue="card" className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal"><option value="card">Card</option><option value="cash">Cash</option><option value="check">Check</option><option value="other">Other</option></select></label>
+            <label className="text-sm font-semibold text-slate-700">Payment date<input name="paymentDate" type="date" required defaultValue={today} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+            <button type="submit" className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">Record payment</button>
+            <label className="text-sm font-semibold text-slate-700 md:col-span-2 lg:col-span-4">Note <span className="font-normal text-slate-500">(optional)</span><textarea name="note" maxLength={500} rows={2} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          </form>
+        </section>
+      ) : invoice.legacySourceTable ? (
+        <p className="mt-6 rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-600">Imported legacy invoice — payment recording is read-only.</p>
+      ) : null}
 
       <LineSection title="Parts" empty="No parts are recorded for this invoice.">
         {invoice.parts.map((part: InvoicePart) => (

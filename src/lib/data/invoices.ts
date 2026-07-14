@@ -56,6 +56,7 @@ export async function getInvoicesForCurrentShop(search?: string, page = 1) {
     select: {
       id: true,
       legacyRoNo: true,
+      legacySourceTable: true,
       repairOrderNumber: true,
       invoiceDate: true,
       status: true,
@@ -85,6 +86,7 @@ export async function getInvoiceForCurrentShop(id: string) {
       id: true,
       legacyRoNo: true,
       repairOrderNumber: true,
+      legacySourceTable: true,
       shopSnapshot: true,
       customerSnapshot: true,
       vehicleSnapshot: true,
