@@ -42,10 +42,8 @@ export async function getVehicleForCurrentShop(id: string) {
       year: true,
       make: true,
       model: true,
-      engine: true,
       vin: true,
       licensePlate: true,
-      odometer: true,
       legacyCarno: true,
       customer: {
         select: {

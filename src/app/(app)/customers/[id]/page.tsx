@@ -16,8 +16,6 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const location = [customer.city, customer.state].filter(Boolean).join(", ");
-
   return (
     <>
       <Link
@@ -56,16 +54,9 @@ export default async function CustomerDetailPage({
 
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Address</h2>
-          <address className="mt-5 text-sm not-italic leading-6 text-slate-700">
-            <p>{customer.addressLine1 ?? "Not recorded"}</p>
-            {customer.addressLine2 && <p>{customer.addressLine2}</p>}
-            {(location || customer.postalCode) && (
-              <p>
-                {location}
-                {customer.postalCode ? ` ${customer.postalCode}` : ""}
-              </p>
-            )}
-          </address>
+          <p className="mt-5 text-sm leading-6 text-slate-600">
+            Not imported yet
+          </p>
         </article>
       </section>
 
