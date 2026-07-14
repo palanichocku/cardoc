@@ -29,23 +29,24 @@ model Shop {
 }
 
 model Customer {
-  id                String              @id @default(uuid()) @db.Uuid
-  shopId            String              @map("shop_id") @db.Uuid
-  displayName       String              @map("display_name")
-  email             String?
-  phone             String?
-  legacyCustno      String?             @map("legacy_custno")
-  legacySourceTable String?             @map("legacy_source_table")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
-  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  vehicles          Vehicle[]
-  repairOrders      RepairOrder[]
-  invoices          Invoice[]
-  payments          Payment[]
+  id                 String              @id @default(uuid()) @db.Uuid
+  shopId             String              @map("shop_id") @db.Uuid
+  displayName        String              @map("display_name")
+  email              String?
+  phone              String?
+  legacyCustno       String?             @map("legacy_custno")
+  legacySourceTable  String?             @map("legacy_source_table")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  vehicles           Vehicle[]
+  repairOrders       RepairOrder[]
+  invoices           Invoice[]
+  payments           Payment[]
   accountsReceivable AccountReceivable[]
 
   @@unique([shopId, legacyCustno])
+  @@index([legacyCustno])
   @@index([shopId, displayName])
   @@map("customers")
 }
@@ -69,36 +70,39 @@ model Vehicle {
   invoices          Invoice[]
 
   @@unique([shopId, legacyCarno])
+  @@index([legacyCarno])
   @@index([shopId, customerId])
   @@index([shopId, vin])
+  @@index([shopId, licensePlate])
   @@map("vehicles")
 }
 
 model RepairOrder {
-  id                String             @id @default(uuid()) @db.Uuid
-  shopId            String             @map("shop_id") @db.Uuid
-  customerId        String             @map("customer_id") @db.Uuid
-  vehicleId         String             @map("vehicle_id") @db.Uuid
-  assignedEmployeeId String?           @map("assigned_employee_id") @db.Uuid
-  status            String             @default("draft")
-  openedAt          DateTime           @default(now()) @map("opened_at")
-  closedAt          DateTime?          @map("closed_at")
-  odometer          Int?
-  concern           String?
-  notes             String?
-  legacyRoNo        String?            @map("legacy_ro_no")
-  legacySourceTable String?            @map("legacy_source_table")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  shop              Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  customer          Customer           @relation(fields: [customerId], references: [id])
-  vehicle           Vehicle            @relation(fields: [vehicleId], references: [id])
-  assignedEmployee  Employee?          @relation(fields: [assignedEmployeeId], references: [id])
-  parts             RepairOrderPart[]
-  labor             RepairOrderLabor[]
-  invoices          Invoice[]
+  id                 String             @id @default(uuid()) @db.Uuid
+  shopId             String             @map("shop_id") @db.Uuid
+  customerId         String             @map("customer_id") @db.Uuid
+  vehicleId          String             @map("vehicle_id") @db.Uuid
+  assignedEmployeeId String?            @map("assigned_employee_id") @db.Uuid
+  status             String             @default("draft")
+  openedAt           DateTime           @default(now()) @map("opened_at")
+  closedAt           DateTime?          @map("closed_at")
+  odometer           Int?
+  concern            String?
+  notes              String?
+  legacyRoNo         String?            @map("legacy_ro_no")
+  legacySourceTable  String?            @map("legacy_source_table")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  shop               Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer           @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle            @relation(fields: [vehicleId], references: [id])
+  assignedEmployee   Employee?          @relation(fields: [assignedEmployeeId], references: [id])
+  parts              RepairOrderPart[]
+  labor              RepairOrderLabor[]
+  invoices           Invoice[]
 
   @@unique([shopId, legacyRoNo])
+  @@index([legacyRoNo])
   @@index([shopId, status])
   @@index([customerId])
   @@index([vehicleId])
@@ -145,31 +149,33 @@ model RepairOrderLabor {
 }
 
 model Invoice {
-  id                String        @id @default(uuid()) @db.Uuid
-  shopId            String        @map("shop_id") @db.Uuid
-  repairOrderId     String?       @map("repair_order_id") @db.Uuid
-  customerId        String        @map("customer_id") @db.Uuid
-  vehicleId         String?       @map("vehicle_id") @db.Uuid
-  status            String        @default("draft")
-  issuedAt          DateTime?     @map("issued_at")
-  dueAt             DateTime?     @map("due_at")
-  subtotal          Decimal       @default(0) @db.Decimal(12, 2)
-  taxTotal          Decimal       @default(0) @map("tax_total") @db.Decimal(12, 2)
-  total             Decimal       @default(0) @db.Decimal(12, 2)
-  legacyRoNo        String?       @map("legacy_ro_no")
-  legacySourceTable String?       @map("legacy_source_table")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  repairOrder       RepairOrder?  @relation(fields: [repairOrderId], references: [id])
-  customer          Customer      @relation(fields: [customerId], references: [id])
-  vehicle           Vehicle?      @relation(fields: [vehicleId], references: [id])
-  parts             InvoicePart[]
-  labor             InvoiceLabor[]
-  payments          Payment[]
+  id                 String              @id @default(uuid()) @db.Uuid
+  shopId             String              @map("shop_id") @db.Uuid
+  repairOrderId      String?             @map("repair_order_id") @db.Uuid
+  customerId         String              @map("customer_id") @db.Uuid
+  vehicleId          String?             @map("vehicle_id") @db.Uuid
+  status             String              @default("draft")
+  invoiceDate        DateTime?           @map("invoice_date")
+  dueAt              DateTime?           @map("due_at")
+  subtotal           Decimal             @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal             @default(0) @map("tax_total") @db.Decimal(12, 2)
+  total              Decimal             @default(0) @db.Decimal(12, 2)
+  legacyRoNo         String?             @map("legacy_ro_no")
+  legacySourceTable  String?             @map("legacy_source_table")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder        RepairOrder?        @relation(fields: [repairOrderId], references: [id])
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle?            @relation(fields: [vehicleId], references: [id])
+  parts              InvoicePart[]
+  labor              InvoiceLabor[]
+  payments           Payment[]
   accountsReceivable AccountReceivable[]
 
   @@unique([shopId, legacyRoNo])
+  @@index([legacyRoNo])
+  @@index([shopId, invoiceDate])
   @@index([shopId, status])
   @@index([customerId])
   @@map("invoices")
@@ -256,6 +262,7 @@ model AccountReceivable {
   @@index([shopId, status])
   @@index([customerId])
   @@index([shopId, legacyRoNo])
+  @@index([legacyRoNo])
   @@map("accounts_receivable")
 }
 
@@ -278,19 +285,19 @@ model Employee {
 }
 
 model LegacyImportRun {
-  id                String              @id @default(uuid()) @db.Uuid
-  shopId            String              @map("shop_id") @db.Uuid
-  status            String              @default("pending")
-  sourceLabel       String              @map("source_label")
-  startedAt         DateTime?           @map("started_at")
-  completedAt       DateTime?           @map("completed_at")
-  recordsProcessed  Int                 @default(0) @map("records_processed")
-  recordsImported   Int                 @default(0) @map("records_imported")
-  recordsFailed     Int                 @default(0) @map("records_failed")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
-  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  errors            LegacyImportError[]
+  id               String              @id @default(uuid()) @db.Uuid
+  shopId           String              @map("shop_id") @db.Uuid
+  status           String              @default("pending")
+  sourceLabel      String              @map("source_label")
+  startedAt        DateTime?           @map("started_at")
+  completedAt      DateTime?           @map("completed_at")
+  recordsProcessed Int                 @default(0) @map("records_processed")
+  recordsImported  Int                 @default(0) @map("records_imported")
+  recordsFailed    Int                 @default(0) @map("records_failed")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  errors           LegacyImportError[]
 
   @@index([shopId, createdAt])
   @@map("legacy_import_runs")
