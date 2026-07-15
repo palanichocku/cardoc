@@ -48,8 +48,17 @@ try {
   }
   const after = await Promise.all([prisma.customer.count(), prisma.vehicle.count(), prisma.invoice.count(), prisma.repairOrder.count(), prisma.accountReceivable.count(), prisma.auditLog.count()]);
   const matrix = JSON.parse(await readFile(new URL("../src/lib/permission-matrix.json", import.meta.url), "utf8"));
-  console.log(`duplicate customer groups found: ${duplicateCount(customerMaps)}`);
-  console.log(`duplicate vehicle groups found: ${duplicateCount(vehicleMaps)}`);
+  const customerGroupCount = duplicateCount(customerMaps);
+  const vehicleGroupCount = duplicateCount(vehicleMaps);
+  const [customerMetrics, vehicleMetrics] = await Promise.all([
+    prisma.customer.findFirst({ where: { shopId: shop.id }, select: { createdAt: true, updatedAt: true, _count: { select: { vehicles: true, invoices: true, repairOrders: true } } } }),
+    prisma.vehicle.findFirst({ where: { shopId: shop.id }, select: { createdAt: true, updatedAt: true, _count: { select: { invoices: true, repairOrders: true } } } }),
+  ]);
+  console.log(`duplicate customer groups found: ${customerGroupCount}`);
+  console.log(`duplicate vehicle groups found: ${vehicleGroupCount}`);
+  console.log(`customer duplicate groups rendered: ${Math.min(50, customerGroupCount)}`);
+  console.log(`vehicle duplicate groups rendered: ${Math.min(50, vehicleGroupCount)}`);
+  console.log(`comparison metric sets verified: ${Number(Boolean(customerMetrics)) + Number(Boolean(vehicleMetrics))}`);
   console.log(`STAFF blocked: ${Number(!matrix.STAFF.includes("export_shop_data"))}`);
   console.log(`OWNER/ADMIN allowed: ${Number(matrix.OWNER.includes("export_shop_data") && matrix.ADMIN.includes("export_shop_data"))}`);
   console.log(`application row counts unchanged: ${Number(before.every((count, index) => count === after[index]))}`);
