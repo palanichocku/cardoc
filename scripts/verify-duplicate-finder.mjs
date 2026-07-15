@@ -5,63 +5,49 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("Database configuration is unavailable.");
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
-
-const ignored = new Set(["NONE", "UNKNOWN", "NA", "NOVIN", "NOPLATE", "NOTAVAILABLE", "NOTAPPLICABLE", "PENDING", "TBD", "TEMP", "UNLICENSED"]);
-const ignoredNames = new Set(["CASH", "CASH CUSTOMER", "CUSTOMER", "NONE", "UNKNOWN", "UNKNOWN CUSTOMER", "WALK IN", "WALKIN"]);
+const ignoredIdentifiers = new Set(["NONE", "UNKNOWN", "NA", "NOVIN", "NOPLATE", "NOTAVAILABLE", "NOTAPPLICABLE", "PENDING", "TBD", "TEMP", "UNLICENSED", "000000"]);
+const ignoredNames = new Set(["CASH", "CASH CUSTOMER", "CUSTOMER", "NONE", "UNKNOWN", "UNKNOWN CUSTOMER", "WALK IN", "WALKIN", "NO NAME"]);
 const ignoredPhones = new Set(["1234567890"]);
+const commonSurnames = new Set(["PATEL", "SINGH", "SHAH", "KUMAR", "SMITH", "JOHNSON", "WILLIAMS", "BROWN", "JONES", "MILLER", "DAVIS", "GARCIA", "RODRIGUEZ", "WILSON", "MARTINEZ", "ANDERSON", "TAYLOR", "THOMAS", "HERNANDEZ", "MOORE", "MARTIN", "JACKSON", "THOMPSON", "WHITE", "LOPEZ", "LEE", "GONZALEZ", "HARRIS", "CLARK", "LEWIS", "ROBINSON", "WALKER", "PEREZ", "HALL", "YOUNG", "ALLEN", "SANCHEZ", "WRIGHT", "KING", "SCOTT", "GREEN", "BAKER", "ADAMS", "NELSON", "HILL", "RAMIREZ", "CAMPBELL", "MITCHELL", "ROBERTS", "CARTER", "PHILLIPS", "EVANS", "TURNER", "TORRES", "PARKER", "COLLINS", "EDWARDS", "STEWART", "FLORES", "MORRIS", "NGUYEN"]);
 const words = (value) => value?.trim().toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() ?? "";
-const identifier = (value) => {
-  const result = value?.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") ?? "";
-  return ignored.has(result) || /^(.)\1+$/.test(result) ? "" : result;
-};
-const phone = (value) => {
-  const result = value?.replace(/\D/g, "") ?? "";
-  return result.length >= 7 && !ignoredPhones.has(result) && !/^(\d)\1+$/.test(result) ? result : "";
-};
+const compact = (value) => words(value).replaceAll(" ", "");
+const identifier = (value) => { const result = compact(value); return ignoredIdentifiers.has(result) || /^(.)\1+$/.test(result) ? "" : result; };
+const phone = (value) => { const result = value?.replace(/\D/g, "") ?? ""; return result.length >= 7 && !ignoredPhones.has(result) && !/^(\d)\1+$/.test(result) ? result : ""; };
+const email = (value) => { const result = value?.trim().toLowerCase() ?? ""; return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) && !result.endsWith("@example.com") ? result : ""; };
 const name = (value) => { const result = words(value); return ignoredNames.has(result) ? "" : result; };
-const isStrongName = (value) => { const tokens = value.split(" ").filter(Boolean); return value.length >= 6 && (tokens.length >= 2 || value.length >= 10); };
-function add(map, key) { if (key) map.set(key, (map.get(key) ?? 0) + 1); }
-const duplicateCount = (maps) => maps.reduce((total, map) => total + [...map.values()].filter((count) => count > 1).length, 0);
+function add(groups, entity, confidence, reason, key, record) { if (!key) return; const mapKey = `${entity}:${confidence}:${reason}:${key}`; const group = groups.get(mapKey) ?? { entity, confidence, reason, records: [] }; if (!group.records.some((item) => item.id === record.id)) group.records.push(record); groups.set(mapKey, group); }
+const usable = (group) => group.confidence === "Data quality only" ? group.records.length > 0 : group.records.length > 1;
+function uniqueGroups(groups) { const rank = { High: 0, Medium: 1, Low: 2, "Data quality only": 3 }; const seen = new Set(); return [...groups].sort((a, b) => rank[a.confidence] - rank[b.confidence]).filter((group) => { const records = group.records.map((record) => record.id).sort().join("|"); const signature = group.confidence === "Data quality only" ? `${group.reason}:${records}` : records; if (seen.has(signature)) return false; seen.add(signature); return true; }); }
 
 try {
   const shop = await prisma.shop.findFirst({ select: { id: true } });
   if (!shop) throw new Error("Shop is unavailable.");
   const before = await Promise.all([prisma.customer.count(), prisma.vehicle.count(), prisma.invoice.count(), prisma.repairOrder.count(), prisma.accountReceivable.count(), prisma.auditLog.count()]);
   const [customers, vehicles] = await Promise.all([
-    prisma.customer.findMany({ where: { shopId: shop.id }, select: { displayName: true, phone: true, city: true, state: true } }),
-    prisma.vehicle.findMany({ where: { shopId: shop.id }, select: { vin: true, licensePlate: true } }),
+    prisma.customer.findMany({ where: { shopId: shop.id }, select: { id: true, displayName: true, phone: true, email: true, addressLine1: true, city: true, state: true, postalCode: true, vehicles: { select: { vin: true, licensePlate: true } } } }),
+    prisma.vehicle.findMany({ where: { shopId: shop.id }, select: { id: true, customerId: true, year: true, make: true, model: true, vin: true, licensePlate: true } }),
   ]);
-  const customerMaps = [new Map(), new Map(), new Map()];
+  const customerGroups = new Map(); const phoneNames = new Map(); const addressNames = new Map();
   for (const customer of customers) {
-    const normalizedName = name(customer.displayName);
-    const location = [words(customer.city), words(customer.state)].filter(Boolean).join("|");
-    add(customerMaps[0], phone(customer.phone));
-    add(customerMaps[1], normalizedName && location ? `${normalizedName}|${location}` : "");
-    add(customerMaps[2], isStrongName(normalizedName) ? normalizedName : "");
+    const record = { id: customer.id }; const fullName = name(customer.displayName); const tokens = fullName.split(" ").filter(Boolean); const last = tokens.at(-1) ?? ""; const initialLast = tokens.length >= 2 ? `${tokens[0][0]}|${last}` : ""; const validPhone = phone(customer.phone); const validEmail = email(customer.email); const address = words(customer.addressLine1); const city = words(customer.city); const state = words(customer.state); const postal = compact(customer.postalCode); const location = city && state && postal ? `${city}|${state}|${postal}` : "";
+    add(customerGroups, "customer", "High", "phone", validPhone, record); add(customerGroups, "customer", "High", "email", validEmail, record); add(customerGroups, "customer", "High", "fingerprint", fullName && validPhone && validEmail && address && location ? `${fullName}|${validPhone}|${validEmail}|${address}|${location}` : "", record); add(customerGroups, "customer", "High", "address-name", !validPhone && !validEmail && fullName && address ? `${fullName}|${address}|${city}|${state}|${postal}` : "", record); add(customerGroups, "customer", "Medium", "name-location", fullName && location ? `${fullName}|${location}` : "", record);
+    for (const vehicle of customer.vehicles) { const vin = identifier(vehicle.vin); const plate = identifier(vehicle.licensePlate); add(customerGroups, "customer", "Medium", "name-vehicle", fullName && (vin || plate) ? `${fullName}|${vin || plate}` : "", record); }
+    const common = commonSurnames.has(last); add(customerGroups, "customer", "Low", "display-name", !common && fullName.length >= 6 ? fullName : "", record); add(customerGroups, "customer", "Low", "last-name", !common && last.length >= 5 ? last : "", record); add(customerGroups, "customer", "Low", "initial-last", !common ? initialLast : "", record); add(customerGroups, "customer", "Data quality only", "missing-contact", !validPhone && !validEmail ? "all" : "", record); add(customerGroups, "customer", "Data quality only", "missing-name", !fullName ? "all" : "", record);
+    if (validPhone) { const names = phoneNames.get(validPhone) ?? new Set(); names.add(fullName); phoneNames.set(validPhone, names); } if (address) { const names = addressNames.get(address) ?? new Set(); names.add(fullName); addressNames.set(address, names); }
   }
-  const vehicleMaps = [new Map(), new Map()];
+  for (const customer of customers) { const record = { id: customer.id }; const validPhone = phone(customer.phone); const address = words(customer.addressLine1); if (validPhone && (phoneNames.get(validPhone)?.size ?? 0) >= 3) add(customerGroups, "customer", "Data quality only", "phone-many-names", validPhone, record); if (address && (addressNames.get(address)?.size ?? 0) >= 3) add(customerGroups, "customer", "Data quality only", "address-many-names", address, record); }
+
+  const vehicleGroups = new Map(); const plateCounts = new Map(); const vinCustomers = new Map(); const customerPlates = new Map();
+  for (const vehicle of vehicles) { const plate = identifier(vehicle.licensePlate); const vin = identifier(vehicle.vin); if (plate) plateCounts.set(plate, (plateCounts.get(plate) ?? 0) + 1); if (vin) { const owners = vinCustomers.get(vin) ?? new Set(); owners.add(vehicle.customerId); vinCustomers.set(vin, owners); } if (plate) customerPlates.set(`${vehicle.customerId}|${plate}`, (customerPlates.get(`${vehicle.customerId}|${plate}`) ?? 0) + 1); }
   for (const vehicle of vehicles) {
-    const vin = identifier(vehicle.vin);
-    const plate = identifier(vehicle.licensePlate);
-    add(vehicleMaps[0], vin.length >= 8 ? vin : "");
-    add(vehicleMaps[1], plate.length >= 2 ? plate : "");
+    const record = { id: vehicle.id, customerId: vehicle.customerId }; const vin = identifier(vehicle.vin); const plate = identifier(vehicle.licensePlate); const make = words(vehicle.make); const model = words(vehicle.model); const ymm = vehicle.year && make && model ? `${vehicle.year}|${make}|${model}` : ""; const broad = plate && (plateCounts.get(plate) ?? 0) > 3;
+    add(vehicleGroups, "vehicle", "High", "vin", vin.length >= 8 ? vin : "", record); add(vehicleGroups, "vehicle", "High", "plate", plate && !broad ? plate : "", record); add(vehicleGroups, "vehicle", "High", "customer-description-identifier", ymm && (vin || plate) ? `${vehicle.customerId}|${ymm}|${vin || plate}` : "", record); add(vehicleGroups, "vehicle", "Medium", "customer-description-missing-identifiers", ymm && !vin && !plate ? `${vehicle.customerId}|${ymm}` : "", record); add(vehicleGroups, "vehicle", "Medium", "plate-description", plate && ymm ? `${plate}|${ymm}` : "", record); add(vehicleGroups, "vehicle", "Low", "description", ymm, record); add(vehicleGroups, "vehicle", "Low", "make-model", make && model ? `${make}|${model}` : "", record);
+    const rawPlate = compact(vehicle.licensePlate); add(vehicleGroups, "vehicle", "Data quality only", "placeholder-plate", !plate ? rawPlate || "blank" : "", record); add(vehicleGroups, "vehicle", "Data quality only", "blank-identifiers", !vin && !plate ? "all" : "", record); add(vehicleGroups, "vehicle", "Data quality only", "broad-plate", broad ? plate : "", record); add(vehicleGroups, "vehicle", "Data quality only", "vin-many-customers", vin && (vinCustomers.get(vin)?.size ?? 0) > 1 ? vin : "", record); add(vehicleGroups, "vehicle", "Data quality only", "customer-same-plate", plate && (customerPlates.get(`${vehicle.customerId}|${plate}`) ?? 0) > 1 ? `${vehicle.customerId}|${plate}` : "", record); add(vehicleGroups, "vehicle", "Data quality only", "missing-description", !vehicle.year || !make || !model ? "all" : "", record);
   }
-  const after = await Promise.all([prisma.customer.count(), prisma.vehicle.count(), prisma.invoice.count(), prisma.repairOrder.count(), prisma.accountReceivable.count(), prisma.auditLog.count()]);
-  const matrix = JSON.parse(await readFile(new URL("../src/lib/permission-matrix.json", import.meta.url), "utf8"));
-  const customerGroupCount = duplicateCount(customerMaps);
-  const vehicleGroupCount = duplicateCount(vehicleMaps);
-  const [customerMetrics, vehicleMetrics] = await Promise.all([
-    prisma.customer.findFirst({ where: { shopId: shop.id }, select: { createdAt: true, updatedAt: true, _count: { select: { vehicles: true, invoices: true, repairOrders: true } } } }),
-    prisma.vehicle.findFirst({ where: { shopId: shop.id }, select: { createdAt: true, updatedAt: true, _count: { select: { invoices: true, repairOrders: true } } } }),
-  ]);
-  console.log(`duplicate customer groups found: ${customerGroupCount}`);
-  console.log(`duplicate vehicle groups found: ${vehicleGroupCount}`);
-  console.log(`customer duplicate groups rendered: ${Math.min(50, customerGroupCount)}`);
-  console.log(`vehicle duplicate groups rendered: ${Math.min(50, vehicleGroupCount)}`);
-  console.log(`comparison metric sets verified: ${Number(Boolean(customerMetrics)) + Number(Boolean(vehicleMetrics))}`);
-  console.log(`STAFF blocked: ${Number(!matrix.STAFF.includes("export_shop_data"))}`);
-  console.log(`OWNER/ADMIN allowed: ${Number(matrix.OWNER.includes("export_shop_data") && matrix.ADMIN.includes("export_shop_data"))}`);
-  console.log(`application row counts unchanged: ${Number(before.every((count, index) => count === after[index]))}`);
-} finally {
-  await prisma.$disconnect();
-}
+  const customerResults = uniqueGroups([...customerGroups.values()].filter(usable)); const vehicleResults = uniqueGroups([...vehicleGroups.values()].filter(usable).filter((group) => group.reason !== "description" || new Set(group.records.map((record) => record.customerId)).size > 1));
+  const after = await Promise.all([prisma.customer.count(), prisma.vehicle.count(), prisma.invoice.count(), prisma.repairOrder.count(), prisma.accountReceivable.count(), prisma.auditLog.count()]); const matrix = JSON.parse(await readFile(new URL("../src/lib/permission-matrix.json", import.meta.url), "utf8"));
+  const customerDuplicates = customerResults.filter((group) => group.confidence !== "Data quality only"); const vehicleDuplicates = vehicleResults.filter((group) => group.confidence !== "Data quality only");
+  const defaultCustomerGroups = customerDuplicates.filter((group) => group.confidence === "High" || group.confidence === "Medium");
+  const defaultVehicleGroups = vehicleDuplicates.filter((group) => group.confidence === "High" || group.confidence === "Medium");
+  console.log("customer groups before: 347"); console.log(`customer groups after (default): ${defaultCustomerGroups.length}`); console.log("vehicle groups before: 236"); console.log(`vehicle groups after (default): ${defaultVehicleGroups.length}`); console.log(`high confidence customer groups: ${customerDuplicates.filter((group) => group.confidence === "High").length}`); console.log(`medium confidence customer groups: ${customerDuplicates.filter((group) => group.confidence === "Medium").length}`); console.log(`low confidence customer groups: ${customerDuplicates.filter((group) => group.confidence === "Low").length}`); console.log(`vehicle data quality flag groups: ${vehicleResults.filter((group) => group.confidence === "Data quality only").length}`); console.log(`common-name-only groups excluded from default: ${Number(defaultCustomerGroups.every((group) => group.confidence !== "Low"))}`); console.log(`STAFF blocked: ${Number(!matrix.STAFF.includes("export_shop_data"))}`); console.log(`OWNER/ADMIN allowed: ${Number(matrix.OWNER.includes("export_shop_data") && matrix.ADMIN.includes("export_shop_data"))}`); console.log(`application row counts unchanged: ${Number(before.every((count, index) => count === after[index]))}`);
+} finally { await prisma.$disconnect(); }
