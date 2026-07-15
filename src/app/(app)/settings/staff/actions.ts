@@ -67,3 +67,18 @@ export async function createStaffInvite(formData: FormData) {
   });
   revalidatePath("/settings/staff");
 }
+
+export async function revokeStaffInvite(formData: FormData) {
+  const inviteId = String(formData.get("inviteId") ?? "");
+  if (!UUID.test(inviteId)) throw new Error("Invalid staff invite.");
+  const { user, membership } = await managerAccess();
+  await prisma.$transaction(async (transaction) => {
+    const result = await transaction.staffInvite.updateMany({
+      where: { id: inviteId, shopId: membership.shopId, status: "pending" },
+      data: { status: "revoked" },
+    });
+    if (result.count !== 1) throw new Error("Pending invitation was not found.");
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_revoked", "staff_invite", inviteId, { source: "web" }) });
+  });
+  revalidatePath("/settings/staff");
+}
