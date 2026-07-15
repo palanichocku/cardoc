@@ -58,6 +58,7 @@ model Shop {
   legacyImportErrors  LegacyImportError[]
   cannedServices      CannedService[]
   auditLogs           AuditLog[]
+  staffInvites        StaffInvite[]
 
   @@map("shops")
 }
@@ -93,6 +94,22 @@ model AuditLog {
   @@index([shopId, createdAt])
   @@index([shopId, entityType, entityId])
   @@map("audit_logs")
+}
+
+model StaffInvite {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId          String             @map("shop_id") @db.Uuid
+  email           String
+  role            ShopMembershipRole @default(STAFF)
+  status          String             @default("pending")
+  invitedByUserId String?            @map("invited_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at")
+  shop            Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, email])
+  @@index([shopId, status])
+  @@map("staff_invites")
 }
 
 model ShopMembership {
