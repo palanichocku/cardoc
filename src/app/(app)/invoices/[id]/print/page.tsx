@@ -33,6 +33,8 @@ export default async function PrintableInvoicePage({
   const shopState = snapshotString(invoice.shopSnapshot, "state", invoice.shop.state);
   const shopPostalCode = snapshotString(invoice.shopSnapshot, "postalCode", invoice.shop.postalCode);
   const shopPhone = snapshotString(invoice.shopSnapshot, "phone", invoice.shop.phone);
+  const invoiceFooterMessage = snapshotString(invoice.shopSnapshot, "invoiceFooterMessage");
+  const warrantyText = snapshotString(invoice.shopSnapshot, "warrantyText");
   const customerName = snapshotString(invoice.customerSnapshot, "displayName", invoice.customer?.displayName ?? null);
   const vehicleYear = snapshotNumber(invoice.vehicleSnapshot, "year", invoice.vehicle?.year ?? null);
   const vehicleMake = snapshotString(invoice.vehicleSnapshot, "make", invoice.vehicle?.make ?? null);
@@ -191,7 +193,8 @@ export default async function PrintableInvoicePage({
           <p className="font-semibold text-slate-700">
             Thank you for choosing {shopName}.
           </p>
-          <p>Please retain this invoice for your service records.</p>
+          <p>{invoiceFooterMessage ?? "Please retain this invoice for your service records."}</p>
+          {warrantyText && <p className="mt-2 whitespace-pre-line">{warrantyText}</p>}
         </footer>
       </div>
     </article>

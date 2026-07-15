@@ -37,8 +37,7 @@ export async function finalizeRepairOrder(formData: FormData) {
         customerId: true,
         vehicleId: true,
         repairOrderNumber: true,
-        taxTotal: true,
-        shop: { select: { name: true, addressLine1: true, city: true, state: true, postalCode: true, phone: true } },
+        shop: { select: { name: true, addressLine1: true, city: true, state: true, postalCode: true, phone: true, defaultTaxRate: true, partsTaxable: true, laborTaxable: true, invoiceFooterMessage: true, warrantyText: true } },
         customer: { select: { displayName: true, phone: true, email: true, addressLine1: true, addressLine2: true, city: true, state: true, postalCode: true } },
         vehicle: { select: { year: true, make: true, model: true, engine: true, vin: true, licensePlate: true, odometer: true } },
         parts: { orderBy: { createdAt: "asc" }, select: { description: true, partNumber: true, quantity: true, unitPrice: true, legacyLineKey: true } },
@@ -59,7 +58,13 @@ export async function finalizeRepairOrder(formData: FormData) {
       zero,
     ).toDecimalPlaces(2);
     const subtotal = partsTotal.plus(laborTotal).toDecimalPlaces(2);
-    const taxTotal = order.taxTotal.toDecimalPlaces(2);
+    const taxableTotal = (order.shop.partsTaxable ? partsTotal : zero).plus(
+      order.shop.laborTaxable ? laborTotal : zero,
+    );
+    const taxTotal = taxableTotal
+      .mul(order.shop.defaultTaxRate)
+      .div(100)
+      .toDecimalPlaces(2);
     const total = subtotal.plus(taxTotal).toDecimalPlaces(2);
     const now = new Date();
 
@@ -119,6 +124,7 @@ export async function finalizeRepairOrder(formData: FormData) {
         closedAt: now,
         partsTotal,
         laborTotal,
+        taxTotal,
         estimatedTotal: total,
       },
     });

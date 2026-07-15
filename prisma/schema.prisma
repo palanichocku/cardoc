@@ -26,6 +26,11 @@ model Shop {
   state               String?
   postalCode          String?               @map("postal_code")
   phone               String?
+  defaultTaxRate      Decimal               @default(0) @map("default_tax_rate") @db.Decimal(6, 3)
+  partsTaxable        Boolean               @default(true) @map("parts_taxable")
+  laborTaxable        Boolean               @default(false) @map("labor_taxable")
+  invoiceFooterMessage String?               @map("invoice_footer_message")
+  warrantyText        String?                @map("warranty_text")
   nextRepairOrderNumber Int                   @default(1) @map("next_repair_order_number")
   createdAt           DateTime              @default(now()) @map("created_at")
   updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at")
