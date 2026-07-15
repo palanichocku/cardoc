@@ -2,9 +2,9 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import type { Prisma } from "@/generated/prisma/client";
 import { getCurrentMembership } from "@/lib/data/membership";
 import { prisma } from "@/lib/prisma";
+import { refreshRepairOrderTotals } from "@/lib/repair-order-totals";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -32,36 +32,6 @@ async function editableOrder(shopId: string, repairOrderId: string) {
   return order;
 }
 
-async function refreshLaborTotal(
-  transaction: Prisma.TransactionClient,
-  shopId: string,
-  repairOrderId: string,
-) {
-  const [order, lines] = await Promise.all([
-    transaction.repairOrder.findFirstOrThrow({
-      where: { id: repairOrderId, shopId, status: { in: ["draft", "open"] }, legacySourceTable: null },
-      select: { partsTotal: true, taxTotal: true },
-    }),
-    transaction.repairOrderLabor.findMany({
-      where: { repairOrderId, shopId },
-      select: { hours: true, hourlyRate: true },
-    }),
-  ]);
-  const laborTotal = lines.reduce(
-    (sum, line) => sum + Number(line.hours) * Number(line.hourlyRate),
-    0,
-  );
-  await transaction.repairOrder.update({
-    where: { id: repairOrderId },
-    data: {
-      laborTotal: laborTotal.toFixed(2),
-      estimatedTotal: (
-        Number(order.partsTotal) + laborTotal + Number(order.taxTotal)
-      ).toFixed(2),
-    },
-  });
-}
-
 export async function addLaborLine(formData: FormData) {
   const repairOrderId = String(formData.get("repairOrderId") ?? "");
   const values = laborValues(formData);
@@ -78,7 +48,7 @@ export async function addLaborLine(formData: FormData) {
         legacyLineKey: `web:${randomUUID()}`,
       },
     });
-    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+    await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -98,7 +68,7 @@ export async function updateLaborLine(formData: FormData) {
       data: values,
     });
     if (result.count !== 1) throw new Error("Labor line is not editable.");
-    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+    await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -116,7 +86,7 @@ export async function deleteLaborLine(formData: FormData) {
       where: { id: laborLineId, repairOrderId, shopId: membership.shopId },
     });
     if (result.count !== 1) throw new Error("Labor line is not editable.");
-    await refreshLaborTotal(transaction, membership.shopId, repairOrderId);
+    await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }

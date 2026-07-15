@@ -54,6 +54,8 @@ export async function getOpenOrderForCurrentShop(id: string) {
           state: true,
           postalCode: true,
           phone: true,
+          invoiceFooterMessage: true,
+          warrantyText: true,
         },
       },
       customer: {

@@ -64,7 +64,7 @@ export default async function RepairOrderPage({ params }: { params: Promise<{ id
         <input type="hidden" name="repairOrderId" value={order.id} />
         <label className="text-sm font-semibold text-slate-700">Description<input name="description" required maxLength={500} placeholder="Labor description" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
         <label className="text-sm font-semibold text-slate-700">Hours<input name="hours" type="number" required min="0.01" max="1000" step="0.01" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
-        <label className="text-sm font-semibold text-slate-700">Rate<input name="hourlyRate" type="number" required min="0" max="1000000" step="0.01" className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-semibold text-slate-700">Rate<input name="hourlyRate" type="number" required min="0" max="1000000" step="0.01" defaultValue={order.shop.defaultLaborRate.toString()} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
         <button type="submit" className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">Add labor</button>
       </form>
     </fieldset>

@@ -27,6 +27,7 @@ model Shop {
   postalCode          String?               @map("postal_code")
   phone               String?
   defaultTaxRate      Decimal               @default(0) @map("default_tax_rate") @db.Decimal(6, 3)
+  defaultLaborRate    Decimal               @default(0) @map("default_labor_rate") @db.Decimal(12, 2)
   partsTaxable        Boolean               @default(true) @map("parts_taxable")
   laborTaxable        Boolean               @default(false) @map("labor_taxable")
   invoiceFooterMessage String?               @map("invoice_footer_message")

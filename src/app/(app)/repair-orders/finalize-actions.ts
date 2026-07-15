@@ -63,7 +63,6 @@ export async function finalizeRepairOrder(formData: FormData) {
     );
     const taxTotal = taxableTotal
       .mul(order.shop.defaultTaxRate)
-      .div(100)
       .toDecimalPlaces(2);
     const total = subtotal.plus(taxTotal).toDecimalPlaces(2);
     const now = new Date();

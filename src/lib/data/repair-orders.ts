@@ -55,6 +55,9 @@ export async function getWebRepairOrderForCurrentShop(id: string) {
           state: true,
           postalCode: true,
           phone: true,
+          defaultLaborRate: true,
+          invoiceFooterMessage: true,
+          warrantyText: true,
         },
       },
       customer: {

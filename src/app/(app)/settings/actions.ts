@@ -16,9 +16,13 @@ export async function updateInvoiceSettings(formData: FormData) {
   if (!membership) throw new Error("Shop access is required.");
 
   const taxRateText = String(formData.get("defaultTaxRate") ?? "").trim();
-  const taxRate = new Prisma.Decimal(taxRateText || "0");
-  if (!taxRate.isFinite() || taxRate.isNegative() || taxRate.greaterThan(100)) {
+  const taxPercent = new Prisma.Decimal(taxRateText || "0");
+  const laborRate = new Prisma.Decimal(String(formData.get("defaultLaborRate") ?? "0"));
+  if (!taxPercent.isFinite() || taxPercent.isNegative() || taxPercent.greaterThan(100)) {
     throw new Error("Default tax rate must be between 0 and 100.");
+  }
+  if (!laborRate.isFinite() || laborRate.isNegative() || laborRate.greaterThan(1_000_000)) {
+    throw new Error("Default labor rate is invalid.");
   }
 
   const invoiceFooterMessage = optionalText(formData.get("invoiceFooterMessage"));
@@ -30,7 +34,8 @@ export async function updateInvoiceSettings(formData: FormData) {
   await prisma.shop.update({
     where: { id: membership.shopId },
     data: {
-      defaultTaxRate: taxRate.toDecimalPlaces(3),
+      defaultTaxRate: taxPercent.div(100).toDecimalPlaces(5),
+      defaultLaborRate: laborRate.toDecimalPlaces(2),
       partsTaxable: formData.get("partsTaxable") === "on",
       laborTaxable: formData.get("laborTaxable") === "on",
       invoiceFooterMessage,

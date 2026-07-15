@@ -1,0 +1,2 @@
+ALTER TABLE "shops"
+ADD COLUMN "default_labor_rate" DECIMAL(12,2) NOT NULL DEFAULT 0;

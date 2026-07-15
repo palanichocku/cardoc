@@ -21,6 +21,7 @@ export default async function SettingsPage({
     where: { id: membership.shopId },
     select: {
       defaultTaxRate: true,
+      defaultLaborRate: true,
       partsTaxable: true,
       laborTaxable: true,
       invoiceFooterMessage: true,
@@ -42,7 +43,8 @@ export default async function SettingsPage({
         <p className="mt-2 text-sm leading-6 text-slate-600">These settings apply only when a web-created repair order is finalized in the future.</p>
         {saved === "1" && <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">Invoice settings saved.</p>}
         <form action={updateInvoiceSettings} className="mt-6 max-w-2xl space-y-5">
-          <label className="block text-sm font-semibold text-slate-700">Default tax rate (%)<input name="defaultTaxRate" type="number" min="0" max="100" step="0.001" required defaultValue={shop.defaultTaxRate.toString()} className="mt-1.5 block w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="block text-sm font-semibold text-slate-700">Default tax rate (%)<input name="defaultTaxRate" type="number" min="0" max="100" step="0.001" required defaultValue={shop.defaultTaxRate.mul(100).toString()} className="mt-1.5 block w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="block text-sm font-semibold text-slate-700">Default labor rate<input name="defaultLaborRate" type="number" min="0" max="1000000" step="0.01" required defaultValue={shop.defaultLaborRate.toString()} className="mt-1.5 block w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 text-sm font-semibold text-slate-700"><input name="partsTaxable" type="checkbox" defaultChecked={shop.partsTaxable} className="size-4" /> Parts are taxable</label>
             <label className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 text-sm font-semibold text-slate-700"><input name="laborTaxable" type="checkbox" defaultChecked={shop.laborTaxable} className="size-4" /> Labor is taxable</label>
