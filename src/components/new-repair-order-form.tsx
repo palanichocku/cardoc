@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createRepairOrder } from "@/app/(app)/repair-orders/actions";
+import { FormSubmitButton } from "@/components/form-submit-button";
 
 type CustomerOption = {
   id: string;
@@ -100,7 +101,7 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
       </fieldset>
       {customerMode === "new" && <p className="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800">A new customer must be created with a new vehicle.</p>}
       <p className="text-sm text-slate-600">This creates a draft only. Parts, labor, and invoice finalization are not included yet.</p>
-      <button type="submit" disabled={(customerMode === "existing" && !customerId) || (vehicleMode === "existing" && !vehicleId)} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</button>
+      <FormSubmitButton pendingLabel="Creating draft…" disabled={(customerMode === "existing" && !customerId) || (vehicleMode === "existing" && !vehicleId)} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</FormSubmitButton>
     </form>
   );
 }

@@ -35,6 +35,7 @@ async function editableOrder(shopId: string, repairOrderId: string) {
       shopId,
       status: { in: ["draft", "open"] },
       legacySourceTable: null,
+      invoices: { none: {} },
     },
     select: { id: true },
   });

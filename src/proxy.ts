@@ -11,7 +11,12 @@ export const config = {
     "/dashboard/:path*",
     "/customers/:path*",
     "/vehicles/:path*",
+    "/repair-orders/:path*",
+    "/open-orders/:path*",
     "/invoices/:path*",
+    "/accounts-receivable/:path*",
+    "/reports/:path*",
+    "/search/:path*",
     "/settings/:path*",
   ],
 };

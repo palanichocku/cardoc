@@ -26,7 +26,7 @@ function laborValues(formData: FormData) {
 async function editableOrder(shopId: string, repairOrderId: string) {
   if (!UUID.test(repairOrderId)) throw new Error("Invalid repair order.");
   const order = await prisma.repairOrder.findFirst({
-    where: { id: repairOrderId, shopId, status: { in: ["draft", "open"] }, legacySourceTable: null },
+    where: { id: repairOrderId, shopId, status: { in: ["draft", "open"] }, legacySourceTable: null, invoices: { none: {} } },
     select: { id: true },
   });
   if (!order) throw new Error("Repair order is not editable.");
