@@ -28,11 +28,11 @@ export async function deleteDraftRepairOrder(formData: FormData) {
         status: { in: ["draft", "open"] },
         invoices: { none: {} },
       },
-      select: { id: true },
+      select: { id: true, repairOrderNumber: true },
     });
     if (order) {
       await transaction.repairOrder.delete({ where: { id: order.id } });
-      await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_deleted", "repair_order", order.id, { source: "web" }) });
+      await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_deleted", "repair_order", order.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: null, contextSummary: "Draft repair order deleted" }) });
     }
   });
   redirect("/repair-orders");

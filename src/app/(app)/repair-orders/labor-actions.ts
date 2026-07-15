@@ -27,7 +27,7 @@ async function editableOrder(shopId: string, repairOrderId: string) {
   if (!UUID.test(repairOrderId)) throw new Error("Invalid repair order.");
   const order = await prisma.repairOrder.findFirst({
     where: { id: repairOrderId, shopId, status: { in: ["draft", "open"] }, legacySourceTable: null, invoices: { none: {} } },
-    select: { id: true },
+    select: { id: true, repairOrderNumber: true },
   });
   if (!order) throw new Error("Repair order is not editable.");
   return order;
@@ -37,7 +37,7 @@ export async function addLaborLine(formData: FormData) {
   const repairOrderId = String(formData.get("repairOrderId") ?? "");
   const values = laborValues(formData);
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const line = await transaction.repairOrderLabor.create({
@@ -50,7 +50,7 @@ export async function addLaborLine(formData: FormData) {
       select: { id: true },
     });
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_added", "repair_order_labor", line.id, { source: "manual" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_added", "repair_order_labor", line.id, { source: "manual" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Labor line added" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -60,7 +60,7 @@ export async function addCannedServiceLaborLine(formData: FormData) {
   const serviceId = String(formData.get("serviceId") ?? "");
   if (!UUID.test(serviceId)) throw new Error("Invalid canned service.");
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const service = await transaction.cannedService.findFirst({
@@ -80,7 +80,7 @@ export async function addCannedServiceLaborLine(formData: FormData) {
       select: { id: true },
     });
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_added", "repair_order_labor", line.id, { source: "canned_service" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_added", "repair_order_labor", line.id, { source: "canned_service" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Labor line added" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -91,7 +91,7 @@ export async function updateLaborLine(formData: FormData) {
   const values = laborValues(formData);
   if (!UUID.test(laborLineId)) throw new Error("Invalid labor line.");
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const result = await transaction.repairOrderLabor.updateMany({
@@ -100,7 +100,7 @@ export async function updateLaborLine(formData: FormData) {
     });
     if (result.count !== 1) throw new Error("Labor line is not editable.");
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_updated", "repair_order_labor", laborLineId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_updated", "repair_order_labor", laborLineId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Labor line updated" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -110,7 +110,7 @@ export async function deleteLaborLine(formData: FormData) {
   const laborLineId = String(formData.get("laborLineId") ?? "");
   if (!UUID.test(laborLineId)) throw new Error("Invalid labor line.");
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const result = await transaction.repairOrderLabor.deleteMany({
@@ -118,7 +118,7 @@ export async function deleteLaborLine(formData: FormData) {
     });
     if (result.count !== 1) throw new Error("Labor line is not editable.");
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_deleted", "repair_order_labor", laborLineId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "labor_line_deleted", "repair_order_labor", laborLineId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Labor line deleted" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }

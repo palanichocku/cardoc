@@ -36,7 +36,7 @@ export async function acceptStaffInvite(formData: FormData) {
       select: { id: true },
     });
     await transaction.staffInvite.update({ where: { id: invite.id }, data: { status: "accepted" } });
-    await transaction.auditLog.create({ data: auditEntry(invite.shopId, user.id, "staff_invite_accepted", "staff_invite", invite.id, { membershipId: membership.id }) });
+    await transaction.auditLog.create({ data: auditEntry(invite.shopId, user.id, "staff_invite_accepted", "staff_invite", invite.id, { membershipId: membership.id }, { actorEmail: email, actorRole: invite.role, entityLabel: email, entityHref: "/admin/staff", contextSummary: "Staff invite accepted" }) });
   }, { isolationLevel: "Serializable" });
 
   redirect("/dashboard");

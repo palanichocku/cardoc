@@ -47,6 +47,7 @@ export async function recordPayment(formData: FormData) {
       select: {
         id: true,
         customerId: true,
+        repairOrderNumber: true,
         total: true,
         accountsReceivable: { take: 1, select: { id: true } },
       },
@@ -85,7 +86,7 @@ export async function recordPayment(formData: FormData) {
       where: { id: invoice.accountsReceivable[0].id },
       data: { balance, status: paid ? "paid" : "open" },
     });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "payment_recorded", "payment", payment.id, { invoiceId: invoice.id, method }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "payment_recorded", "payment", payment.id, { invoiceId: invoice.id, method }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `Invoice RO #${invoice.repairOrderNumber}`, entityHref: `/invoices/${invoice.id}`, contextSummary: "Payment recorded" }) });
   }, { isolationLevel: "Serializable" });
 
   revalidatePath(`/invoices/${invoiceId}`);

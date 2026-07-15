@@ -127,7 +127,7 @@ export async function finalizeRepairOrder(formData: FormData) {
         estimatedTotal: total,
       },
     });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_finalized", "repair_order", order.id, { invoiceId: createdInvoice.id }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_finalized", "repair_order", order.id, { invoiceId: createdInvoice.id }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/invoices/${createdInvoice.id}`, contextSummary: "Repair order finalized into invoice" }) });
     return createdInvoice;
   }, { isolationLevel: "Serializable" });
 

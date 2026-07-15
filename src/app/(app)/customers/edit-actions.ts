@@ -29,7 +29,7 @@ export async function updateCustomer(formData: FormData) {
       data: { displayName, phone: phone || null, email: email || null, addressLine1: addressLine1 || null, city: city || null, state: state || null, postalCode: postalCode || null },
     });
     if (result.count !== 1) throw new Error("Customer was not found.");
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "customer_updated", "customer", customerId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "customer_updated", "customer", customerId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: displayName, entityHref: `/customers/${customerId}`, contextSummary: "Customer record updated" }) });
   });
   redirect(`/customers/${customerId}`);
 }

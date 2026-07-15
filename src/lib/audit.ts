@@ -1,4 +1,14 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, ShopMembershipRole } from "@/generated/prisma/client";
+
+type AuditContext = {
+  actorEmail?: string | null;
+  actorRole?: ShopMembershipRole | string | null;
+  entityLabel?: string | null;
+  entityHref?: string | null;
+  contextSummary?: string | null;
+};
+
+const safeText = (value: string | null | undefined, maximum: number) => value?.trim().slice(0, maximum) || null;
 
 export function auditEntry(
   shopId: string,
@@ -7,13 +17,20 @@ export function auditEntry(
   entityType: string,
   entityId: string,
   metadata?: Prisma.InputJsonObject,
+  context: AuditContext = {},
 ) {
+  const href = safeText(context.entityHref, 500);
   return {
     shopId,
     userId: userId ?? null,
     action,
     entityType,
     entityId,
+    actorEmail: safeText(context.actorEmail, 320),
+    actorRole: safeText(context.actorRole, 32),
+    entityLabel: safeText(context.entityLabel, 200),
+    entityHref: href?.startsWith("/") ? href : null,
+    contextSummary: safeText(context.contextSummary, 500),
     metadata,
   };
 }

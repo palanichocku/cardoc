@@ -133,7 +133,7 @@ export async function createRepairOrder(formData: FormData) {
       },
       select: { id: true },
     });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_created", "repair_order", created.id, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "repair_order_created", "repair_order", created.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${repairOrderNumber}`, entityHref: `/repair-orders/${created.id}`, contextSummary: "Repair order created" }) });
     return created;
   }, { isolationLevel: "Serializable" });
 

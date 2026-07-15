@@ -30,7 +30,7 @@ export async function updateVehicle(formData: FormData) {
       data: { year, make, model, licensePlate: licensePlate || null, vin: vin || null, odometer },
     });
     if (result.count !== 1) throw new Error("Vehicle was not found.");
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "vehicle_updated", "vehicle", vehicleId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "vehicle_updated", "vehicle", vehicleId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: [year, make, model].join(" "), entityHref: `/vehicles/${vehicleId}`, contextSummary: "Vehicle record updated" }) });
   });
   redirect(`/vehicles/${vehicleId}`);
 }

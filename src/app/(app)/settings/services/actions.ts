@@ -21,9 +21,10 @@ function values(formData: FormData) {
 
 export async function createCannedService(formData: FormData) {
   const { user, membership } = await requirePermission("manage_canned_services");
+  const data = values(formData);
   await prisma.$transaction(async (transaction) => {
-    const service = await transaction.cannedService.create({ data: { shopId: membership.shopId, ...values(formData) }, select: { id: true } });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_created", "canned_service", service.id, { source: "web" }) });
+    const service = await transaction.cannedService.create({ data: { shopId: membership.shopId, ...data }, select: { id: true } });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_created", "canned_service", service.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: data.name, entityHref: "/admin/services", contextSummary: "Canned service created" }) });
   });
   revalidatePath("/admin/services");
 }
@@ -36,7 +37,7 @@ export async function updateCannedService(formData: FormData) {
   await prisma.$transaction(async (transaction) => {
     const result = await transaction.cannedService.updateMany({ where: { id, shopId: membership.shopId }, data });
     if (result.count !== 1) throw new Error("Canned service was not found.");
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, data.active ? "canned_service_updated" : "canned_service_deactivated", "canned_service", id, { active: data.active }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, data.active ? "canned_service_updated" : "canned_service_deactivated", "canned_service", id, { active: data.active }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: data.name, entityHref: "/admin/services", contextSummary: data.active ? "Canned service updated" : "Canned service deactivated" }) });
   });
   revalidatePath("/admin/services");
 }
@@ -46,8 +47,9 @@ export async function deleteCannedService(formData: FormData) {
   if (!UUID.test(id)) throw new Error("Invalid canned service.");
   const { user, membership } = await requirePermission("manage_canned_services");
   await prisma.$transaction(async (transaction) => {
+    const service = await transaction.cannedService.findFirst({ where: { id, shopId: membership.shopId }, select: { name: true } });
     const result = await transaction.cannedService.deleteMany({ where: { id, shopId: membership.shopId } });
-    if (result.count === 1) await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_deleted", "canned_service", id, { source: "web" }) });
+    if (result.count === 1) await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_deleted", "canned_service", id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: service?.name ?? "Canned service", entityHref: "/admin/services", contextSummary: "Canned service deleted" }) });
   });
   revalidatePath("/admin/services");
 }

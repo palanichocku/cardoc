@@ -37,16 +37,17 @@ async function editableOrder(shopId: string, repairOrderId: string) {
       legacySourceTable: null,
       invoices: { none: {} },
     },
-    select: { id: true },
+    select: { id: true, repairOrderNumber: true },
   });
   if (!order) throw new Error("Repair order is not editable.");
+  return order;
 }
 
 export async function addPartLine(formData: FormData) {
   const repairOrderId = String(formData.get("repairOrderId") ?? "");
   const values = partValues(formData);
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const line = await transaction.repairOrderPart.create({
@@ -59,7 +60,7 @@ export async function addPartLine(formData: FormData) {
       select: { id: true },
     });
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_added", "repair_order_part", line.id, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_added", "repair_order_part", line.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Part line added" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -70,7 +71,7 @@ export async function updatePartLine(formData: FormData) {
   const values = partValues(formData);
   if (!UUID.test(partLineId)) throw new Error("Invalid part line.");
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const result = await transaction.repairOrderPart.updateMany({
@@ -79,7 +80,7 @@ export async function updatePartLine(formData: FormData) {
     });
     if (result.count !== 1) throw new Error("Part line is not editable.");
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_updated", "repair_order_part", partLineId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_updated", "repair_order_part", partLineId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Part line updated" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }
@@ -89,7 +90,7 @@ export async function deletePartLine(formData: FormData) {
   const partLineId = String(formData.get("partLineId") ?? "");
   if (!UUID.test(partLineId)) throw new Error("Invalid part line.");
   const { user, membership } = await requirePermission("edit_draft_repair_order");
-  await editableOrder(membership.shopId, repairOrderId);
+  const order = await editableOrder(membership.shopId, repairOrderId);
 
   await prisma.$transaction(async (transaction) => {
     const result = await transaction.repairOrderPart.deleteMany({
@@ -97,7 +98,7 @@ export async function deletePartLine(formData: FormData) {
     });
     if (result.count !== 1) throw new Error("Part line is not editable.");
     await refreshRepairOrderTotals(transaction, membership.shopId, repairOrderId);
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_deleted", "repair_order_part", partLineId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "part_line_deleted", "repair_order_part", partLineId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: `RO #${order.repairOrderNumber}`, entityHref: `/repair-orders/${repairOrderId}`, contextSummary: "Part line deleted" }) });
   });
   revalidatePath(`/repair-orders/${repairOrderId}`);
 }

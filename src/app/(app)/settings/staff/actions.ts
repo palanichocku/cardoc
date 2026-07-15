@@ -27,7 +27,7 @@ export async function changeMemberRole(formData: FormData) {
       if (owners <= 1) throw new Error("The last owner cannot be demoted.");
     }
     await transaction.shopMembership.update({ where: { id: target.id }, data: { role } });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_role_changed", "shop_membership", target.id, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_role_changed", "shop_membership", target.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: "Staff membership", entityHref: "/admin/staff", contextSummary: "Staff member role changed" }) });
   }, { isolationLevel: "Serializable" });
   revalidatePath("/admin/staff");
 }
@@ -45,7 +45,7 @@ export async function removeMember(formData: FormData) {
       if (owners <= 1) throw new Error("The last owner cannot be removed.");
     }
     await transaction.shopMembership.delete({ where: { id: target.id } });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_removed", "shop_membership", target.id, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_removed", "shop_membership", target.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: "Staff membership", entityHref: "/admin/staff", contextSummary: "Staff member removed" }) });
   }, { isolationLevel: "Serializable" });
   revalidatePath("/admin/staff");
 }
@@ -63,7 +63,7 @@ export async function createStaffInvite(formData: FormData) {
       create: { shopId: membership.shopId, email, role, invitedByUserId: user?.id ?? null },
       select: { id: true },
     });
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_created", "staff_invite", invite.id, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_created", "staff_invite", invite.id, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: email, entityHref: "/admin/staff", contextSummary: "Staff invite created" }) });
   });
   revalidatePath("/admin/staff");
 }
@@ -73,12 +73,13 @@ export async function revokeStaffInvite(formData: FormData) {
   if (!UUID.test(inviteId)) throw new Error("Invalid staff invite.");
   const { user, membership } = await managerAccess();
   await prisma.$transaction(async (transaction) => {
+    const invite = await transaction.staffInvite.findFirst({ where: { id: inviteId, shopId: membership.shopId, status: "pending" }, select: { email: true } });
     const result = await transaction.staffInvite.updateMany({
       where: { id: inviteId, shopId: membership.shopId, status: "pending" },
       data: { status: "revoked" },
     });
     if (result.count !== 1) throw new Error("Pending invitation was not found.");
-    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_revoked", "staff_invite", inviteId, { source: "web" }) });
+    await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_revoked", "staff_invite", inviteId, { source: "web" }, { actorEmail: user?.email, actorRole: membership.role, entityLabel: invite?.email ?? "Staff invite", entityHref: "/admin/staff", contextSummary: "Staff invite revoked" }) });
   });
   revalidatePath("/admin/staff");
 }

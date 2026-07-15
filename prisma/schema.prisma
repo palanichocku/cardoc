@@ -87,6 +87,11 @@ model AuditLog {
   action     String
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id") @db.Uuid
+  actorEmail String?  @map("actor_email")
+  actorRole  String?  @map("actor_role")
+  entityLabel String? @map("entity_label")
+  entityHref String?  @map("entity_href")
+  contextSummary String? @map("context_summary")
   metadata   Json?
   createdAt  DateTime @default(now()) @map("created_at")
   shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
