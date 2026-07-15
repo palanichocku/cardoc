@@ -41,6 +41,11 @@ export function AppShell({
 
         <DesktopNavigation />
 
+        <form action="/search" className="mt-6">
+          <label htmlFor="sidebar-shop-search" className="sr-only">Search shop</label>
+          <input id="sidebar-shop-search" name="q" type="search" placeholder="Search shop…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        </form>
+
         <div className="mt-auto border-t border-slate-200 pt-5">
           <p className="truncate text-sm font-medium text-slate-900">
             {userEmail}
