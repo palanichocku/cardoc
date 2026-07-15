@@ -1,5 +1,4 @@
 import { PageHeading } from "@/components/page-heading";
-import Link from "next/link";
 import { PermissionDenied } from "@/components/permission-denied";
 import { hasPermission } from "@/lib/permissions";
 import { getCurrentMembership } from "@/lib/data/membership";
@@ -39,8 +38,8 @@ export default async function SettingsPage({
     <>
       <PageHeading
         eyebrow="Workspace"
-        title="Settings"
-        description="Manage general application and shop preferences."
+        title="Shop Settings"
+        description="Manage invoice defaults and shop document messages."
       />
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Invoice defaults</h2>
@@ -58,9 +57,6 @@ export default async function SettingsPage({
           <button type="submit" className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">Save invoice settings</button>
         </form>
       </section>
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold">Common services</h2><p className="mt-2 text-sm text-slate-600">Manage reusable labor templates for draft repair orders.</p><Link href="/settings/services" className="mt-4 inline-flex rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Manage common services</Link></section>
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold">Audit log</h2><p className="mt-2 text-sm text-slate-600">Review recent important shop actions without sensitive field payloads.</p><Link href="/settings/audit-log" className="mt-4 inline-flex rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">View audit log</Link></section>
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-semibold">Staff</h2><p className="mt-2 text-sm text-slate-600">Manage shop members, roles, and pending invitations.</p><Link href="/settings/staff" className="mt-4 inline-flex rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Manage staff</Link></section>
     </>
   );
 }

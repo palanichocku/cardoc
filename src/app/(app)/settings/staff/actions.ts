@@ -29,7 +29,7 @@ export async function changeMemberRole(formData: FormData) {
     await transaction.shopMembership.update({ where: { id: target.id }, data: { role } });
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_role_changed", "shop_membership", target.id, { source: "web" }) });
   }, { isolationLevel: "Serializable" });
-  revalidatePath("/settings/staff");
+  revalidatePath("/admin/staff");
 }
 
 export async function removeMember(formData: FormData) {
@@ -47,7 +47,7 @@ export async function removeMember(formData: FormData) {
     await transaction.shopMembership.delete({ where: { id: target.id } });
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "member_removed", "shop_membership", target.id, { source: "web" }) });
   }, { isolationLevel: "Serializable" });
-  revalidatePath("/settings/staff");
+  revalidatePath("/admin/staff");
 }
 
 export async function createStaffInvite(formData: FormData) {
@@ -65,7 +65,7 @@ export async function createStaffInvite(formData: FormData) {
     });
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_created", "staff_invite", invite.id, { source: "web" }) });
   });
-  revalidatePath("/settings/staff");
+  revalidatePath("/admin/staff");
 }
 
 export async function revokeStaffInvite(formData: FormData) {
@@ -80,5 +80,5 @@ export async function revokeStaffInvite(formData: FormData) {
     if (result.count !== 1) throw new Error("Pending invitation was not found.");
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "staff_invite_revoked", "staff_invite", inviteId, { source: "web" }) });
   });
-  revalidatePath("/settings/staff");
+  revalidatePath("/admin/staff");
 }

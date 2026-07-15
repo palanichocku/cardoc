@@ -37,5 +37,5 @@ export default async function WorkspaceLayout({
     redirect("/invite");
   }
 
-  return <AppShell userEmail={user.email ?? "Signed-in user"} canViewReports={hasPermission(membership.role, "view_reports")} canViewSettings={hasPermission(membership.role, "edit_shop_settings")}>{children}</AppShell>;
+  return <AppShell userEmail={user.email ?? "Signed-in user"} canViewReports={hasPermission(membership.role, "view_reports")} canViewAdmin={hasPermission(membership.role, "edit_shop_settings")}>{children}</AppShell>;
 }

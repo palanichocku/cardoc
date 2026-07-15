@@ -25,7 +25,7 @@ export async function createCannedService(formData: FormData) {
     const service = await transaction.cannedService.create({ data: { shopId: membership.shopId, ...values(formData) }, select: { id: true } });
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_created", "canned_service", service.id, { source: "web" }) });
   });
-  revalidatePath("/settings/services");
+  revalidatePath("/admin/services");
 }
 
 export async function updateCannedService(formData: FormData) {
@@ -38,7 +38,7 @@ export async function updateCannedService(formData: FormData) {
     if (result.count !== 1) throw new Error("Canned service was not found.");
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, data.active ? "canned_service_updated" : "canned_service_deactivated", "canned_service", id, { active: data.active }) });
   });
-  revalidatePath("/settings/services");
+  revalidatePath("/admin/services");
 }
 
 export async function deleteCannedService(formData: FormData) {
@@ -49,5 +49,5 @@ export async function deleteCannedService(formData: FormData) {
     const result = await transaction.cannedService.deleteMany({ where: { id, shopId: membership.shopId } });
     if (result.count === 1) await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "canned_service_deleted", "canned_service", id, { source: "web" }) });
   });
-  revalidatePath("/settings/services");
+  revalidatePath("/admin/services");
 }

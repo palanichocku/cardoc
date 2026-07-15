@@ -18,6 +18,7 @@ export const config = {
     "/accounts-receivable/:path*",
     "/reports/:path*",
     "/search/:path*",
+    "/admin/:path*",
     "/settings/:path*",
   ],
 };

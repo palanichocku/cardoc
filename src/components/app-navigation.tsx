@@ -11,7 +11,7 @@ const navigation = [
   { href: "/accounts-receivable", label: "Accounts Receivable", shortLabel: "A" },
   { href: "/repair-orders", label: "Repair Orders", shortLabel: "R" },
   { href: "/reports", label: "Reports", shortLabel: "P" },
-  { href: "/settings", label: "Settings", shortLabel: "S" },
+  { href: "/admin", label: "Admin", shortLabel: "A" },
 ];
 
 function NavigationLink({
@@ -65,27 +65,27 @@ function NavigationLink({
   );
 }
 
-function allowedNavigation(canViewReports: boolean, canViewSettings: boolean) {
-  return navigation.filter((item) => (item.href !== "/reports" || canViewReports) && (item.href !== "/settings" || canViewSettings));
+function allowedNavigation(canViewReports: boolean, canViewAdmin: boolean) {
+  return navigation.filter((item) => (item.href !== "/reports" || canViewReports) && (item.href !== "/admin" || canViewAdmin));
 }
 
-export function DesktopNavigation({ canViewReports, canViewSettings }: { canViewReports: boolean; canViewSettings: boolean }) {
+export function DesktopNavigation({ canViewReports, canViewAdmin }: { canViewReports: boolean; canViewAdmin: boolean }) {
   return (
     <nav className="mt-8 space-y-1" aria-label="Primary navigation">
-      {allowedNavigation(canViewReports, canViewSettings).map((item) => (
+      {allowedNavigation(canViewReports, canViewAdmin).map((item) => (
         <NavigationLink key={item.href} {...item} />
       ))}
     </nav>
   );
 }
 
-export function MobileNavigation({ canViewReports, canViewSettings }: { canViewReports: boolean; canViewSettings: boolean }) {
+export function MobileNavigation({ canViewReports, canViewAdmin }: { canViewReports: boolean; canViewAdmin: boolean }) {
   return (
     <nav
       className="flex gap-1 overflow-x-auto border-t border-slate-200 px-3 py-2"
       aria-label="Mobile navigation"
     >
-      {allowedNavigation(canViewReports, canViewSettings).map((item) => (
+      {allowedNavigation(canViewReports, canViewAdmin).map((item) => (
         <NavigationLink key={item.href} {...item} mobile />
       ))}
     </nav>

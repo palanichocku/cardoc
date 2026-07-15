@@ -39,6 +39,6 @@ export async function updateInvoiceSettings(formData: FormData) {
     await transaction.auditLog.create({ data: auditEntry(membership.shopId, user?.id, "shop_settings_updated", "shop", membership.shopId, { source: "web" }) });
   });
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=1");
+  revalidatePath("/admin/shop-settings");
+  redirect("/admin/shop-settings?saved=1");
 }

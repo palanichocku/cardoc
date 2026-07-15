@@ -15,7 +15,7 @@ export default async function CannedServicesPage() {
   const services = await prisma.cannedService.findMany({ where: { shopId: membership.shopId }, orderBy: [{ active: "desc" }, { name: "asc" }] });
 
   return <>
-    <Link href="/settings" className="text-sm font-semibold text-sky-700 hover:text-sky-800">← Settings</Link>
+    <Link href="/admin" className="text-sm font-semibold text-sky-700 hover:text-sky-800">← Admin</Link>
     <div className="mt-5"><PageHeading eyebrow="Shop templates" title="Common Services" description="Reusable labor templates copied into draft repair orders." /></div>
     <section className="space-y-4">
       {services.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">No canned services have been configured.</p> : services.map((service) => <form key={service.id} action={updateCannedService} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_2fr_7rem_9rem_auto] lg:items-end">
