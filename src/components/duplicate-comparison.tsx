@@ -1,36 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { CustomerDuplicate, DuplicateGroup, VehicleDuplicate } from "@/lib/data/duplicates";
 
 type Tab = "customers" | "vehicles" | "quality";
-type Reason = "all" | "phone" | "name" | "vin" | "plate";
 const date = (value: string | null) => value ? new Date(value).toLocaleDateString("en-US") : "Not recorded";
 const money = (value: string) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value) || 0);
 const confidenceClass = { High: "bg-emerald-100 text-emerald-800", Medium: "bg-amber-100 text-amber-800", Low: "bg-slate-100 text-slate-700", "Data quality only": "bg-violet-100 text-violet-800" } as const;
 
 export function DuplicateComparison({ customerGroups, vehicleGroups }: { customerGroups: Array<DuplicateGroup<CustomerDuplicate>>; vehicleGroups: Array<DuplicateGroup<VehicleDuplicate>> }) {
   const [tab, setTab] = useState<Tab>("customers");
-  const [includeLow, setIncludeLow] = useState(false);
-  const [reason, setReason] = useState<Reason>("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const customerDuplicates = customerGroups.filter((group) => group.confidence !== "Data quality only");
   const vehicleDuplicates = vehicleGroups.filter((group) => group.confidence !== "Data quality only");
   const qualityGroups = [...customerGroups.filter((group) => group.confidence === "Data quality only"), ...vehicleGroups.filter((group) => group.confidence === "Data quality only")];
   const source = tab === "customers" ? customerDuplicates : tab === "vehicles" ? vehicleDuplicates : qualityGroups;
-  const visible = useMemo(() => source.filter((group) => (tab === "quality" || includeLow || group.confidence !== "Low") && (reason === "all" || group.reason.toLowerCase().includes(reason))), [source, tab, includeLow, reason]);
+  const visible = source;
   const toggle = (id: string) => setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
 
   return <>
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex rounded-lg bg-slate-100 p-1" aria-label="Duplicate type">
-        <button type="button" onClick={() => { setTab("customers"); setReason("all"); }} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "customers" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Customer Duplicates ({customerDuplicates.length})</button>
-        <button type="button" onClick={() => { setTab("vehicles"); setReason("all"); }} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "vehicles" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Vehicle Duplicates ({vehicleDuplicates.length})</button>
-        <button type="button" onClick={() => { setTab("quality"); setReason("all"); }} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "quality" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Data Quality Flags ({qualityGroups.length})</button>
+        <button type="button" onClick={() => setTab("customers")} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "customers" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Customer Duplicates ({customerDuplicates.length})</button>
+        <button type="button" onClick={() => setTab("vehicles")} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "vehicles" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Vehicle Duplicates ({vehicleDuplicates.length})</button>
+        <button type="button" onClick={() => setTab("quality")} className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === "quality" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>Data Quality Flags ({qualityGroups.length})</button>
       </div>
-      {tab !== "quality" && <label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" checked={includeLow} onChange={(event) => setIncludeLow(event.target.checked)} /> Include low confidence</label>}
-      {tab !== "quality" && <label className="text-sm font-medium text-slate-700">Match reason <select value={reason} onChange={(event) => setReason(event.target.value as Reason)} className="ml-2 rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal"><option value="all">All</option>{tab === "customers" ? <><option value="phone">Phone</option><option value="name">Name</option></> : <><option value="vin">VIN</option><option value="plate">License plate</option></>}</select></label>}
       <div className="ml-auto flex gap-2"><button type="button" onClick={() => setExpanded((current) => new Set([...current, ...visible.map((group) => group.id)]))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Expand all</button><button type="button" onClick={() => setExpanded(new Set())} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Collapse all</button></div>
     </div>
     {visible.length === 0 ? <section className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"><h2 className="text-lg font-semibold">No duplicate groups match these filters</h2><p className="mt-2 text-sm text-slate-600">Try another record type or confidence level.</p></section> : <div className="mt-5 space-y-4">{visible.map((group) => {

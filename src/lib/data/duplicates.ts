@@ -18,9 +18,7 @@ const words = (value: string | null) => value?.trim().toUpperCase().replace(/[^A
 const compact = (value: string | null) => words(value).replaceAll(" ", "");
 function validIdentifier(value: string | null) { const normalized = compact(value); return ignoredIdentifiers.has(normalized) || /^(.)\1+$/.test(normalized) ? "" : normalized; }
 function validPhone(value: string | null) { const normalized = value?.replace(/\D/g, "") ?? ""; return normalized.length >= 7 && !ignoredPhones.has(normalized) && !/^(\d)\1+$/.test(normalized) ? normalized : ""; }
-function validEmail(value: string | null) { const normalized = value?.trim().toLowerCase() ?? ""; return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !normalized.endsWith("@example.com") ? normalized : ""; }
 function validName(value: string | null) { const normalized = words(value); return ignoredNames.has(normalized) ? "" : normalized; }
-function nameParts(value: string) { const tokens = value.split(" ").filter(Boolean); return { tokens, last: tokens.at(-1) ?? "", initialLast: tokens.length >= 2 ? `${tokens[0][0]}|${tokens.at(-1)}` : "" }; }
 function add(groups: Map<string, CandidateGroup>, entityType: EntityType, confidence: Confidence, reason: string, key: string, record: Candidate) { if (!key) return; const mapKey = `${entityType}:${confidence}:${reason}:${key}`; const group = groups.get(mapKey) ?? { entityType, confidence, reason, records: [] }; if (!group.records.some((item) => item.id === record.id)) group.records.push(record); groups.set(mapKey, group); }
 function finish(prefix: string, groups: Map<string, CandidateGroup>) { const levels: Confidence[] = ["High", "Medium", "Low", "Data quality only"]; const valid = [...groups.values()].filter((group) => group.confidence === "Data quality only" ? group.records.length > 0 : group.records.length > 1); const seen = new Set<string>(); return levels.flatMap((level) => valid.filter((group) => group.confidence === level).sort((a, b) => b.records.length - a.records.length || a.reason.localeCompare(b.reason)).slice(0, 30)).filter((group) => { const records = group.records.map((record) => record.id).sort().join("|"); const signature = group.confidence === "Data quality only" ? `${group.reason}:${records}` : records; if (seen.has(signature)) return false; seen.add(signature); return true; }).map((group, index) => ({ id: `${prefix}-${index + 1}`, ...group, totalCount: group.records.length, records: group.records.slice(0, 15) })); }
 function latest(...values: Array<Date | null | undefined>) { const dates = values.filter((value): value is Date => Boolean(value)); return dates.length ? new Date(Math.max(...dates.map((value) => value.getTime()))).toISOString() : null; }
@@ -51,34 +49,29 @@ async function enrichVehicleGroups(shopId: string, groups: ReturnType<typeof fin
 }
 
 export async function findDuplicateCustomers(shopId: string) {
-  const customers = await prisma.customer.findMany({ where: { shopId }, orderBy: { id: "asc" }, select: { id: true, displayName: true, phone: true, email: true, addressLine1: true, city: true, state: true, postalCode: true, vehicles: { select: { vin: true, licensePlate: true } } } });
-  const groups = new Map<string, CandidateGroup>(); const phoneNames = new Map<string, Set<string>>(); const addressNames = new Map<string, Set<string>>();
+  const customers = await prisma.customer.findMany({ where: { shopId }, orderBy: { id: "asc" }, select: { id: true, displayName: true, phone: true, email: true, addressLine1: true, addressLine2: true, city: true, state: true, postalCode: true } });
+  const groups = new Map<string, CandidateGroup>();
   for (const customer of customers) {
-    const record = { id: customer.id }; const fullName = validName(customer.displayName); const parts = nameParts(fullName); const phone = validPhone(customer.phone); const email = validEmail(customer.email); const address = words(customer.addressLine1); const city = words(customer.city); const state = words(customer.state); const postal = compact(customer.postalCode); const location = city && state && postal ? `${city}|${state}|${postal}` : "";
-    add(groups, "customer", "High", "Same valid phone", phone, record); add(groups, "customer", "High", "Same valid email", email, record);
-    add(groups, "customer", "High", "Exact customer fingerprint", fullName && phone && email && address && location ? `${fullName}|${phone}|${email}|${address}|${location}` : "", record);
-    add(groups, "customer", "High", "Same address and full name with contact details missing", !phone && !email && fullName && address ? `${fullName}|${address}|${city}|${state}|${postal}` : "", record);
-    add(groups, "customer", "Medium", "Same full name and city/state/postal", fullName && location ? `${fullName}|${location}` : "", record);
-    for (const vehicle of customer.vehicles) { const vin = validIdentifier(vehicle.vin); const plate = validIdentifier(vehicle.licensePlate); add(groups, "customer", "Medium", "Same full name and shared vehicle identifier", fullName && (vin || plate) ? `${fullName}|${vin || plate}` : "", record); }
-    const common = commonSurnames.has(parts.last); add(groups, "customer", "Low", "Same display name only", !common && fullName.length >= 6 ? fullName : "", record); add(groups, "customer", "Low", "Same last name only", !common && parts.last.length >= 5 ? parts.last : "", record); add(groups, "customer", "Low", "Same first initial and last name only", !common ? parts.initialLast : "", record);
-    if (phone) { const names = phoneNames.get(phone) ?? new Set(); names.add(fullName); phoneNames.set(phone, names); } if (address) { const names = addressNames.get(address) ?? new Set(); names.add(fullName); addressNames.set(address, names); }
-    add(groups, "customer", "Data quality only", "Missing both phone and email", !phone && !email ? "all" : "", record); add(groups, "customer", "Data quality only", "Missing or placeholder customer name", !fullName ? "all" : "", record);
+    const record = { id: customer.id }; const fullName = validName(customer.displayName); const phone = validPhone(customer.phone); const emailMissing = !customer.email?.trim(); const address1 = words(customer.addressLine1); const address2 = words(customer.addressLine2); const city = words(customer.city); const state = words(customer.state); const postal = compact(customer.postalCode); const fullAddress = address1 && city && state && postal ? `${address1}|${address2}|${city}|${state}|${postal}` : ""; const commonName = fullName.split(" ").some((token) => commonSurnames.has(token));
+    add(groups, "customer", "High", "Same normalized name, valid phone, and full address", !commonName && fullName && phone && fullAddress ? `${fullName}|${phone}|${fullAddress}` : "", record);
+    add(groups, "customer", "Data quality only", "Missing phone", !phone ? "all" : "", record);
+    add(groups, "customer", "Data quality only", "Missing email", emailMissing ? "all" : "", record);
+    add(groups, "customer", "Data quality only", "Missing both phone and email", !phone && emailMissing ? "all" : "", record);
+    add(groups, "customer", "Data quality only", "Missing or placeholder customer name", !fullName ? "all" : "", record);
   }
-  for (const customer of customers) { const record = { id: customer.id }; const phone = validPhone(customer.phone); const address = words(customer.addressLine1); if (phone && (phoneNames.get(phone)?.size ?? 0) >= 3) add(groups, "customer", "Data quality only", "Same phone linked to many different names", phone, record); if (address && (addressNames.get(address)?.size ?? 0) >= 3) add(groups, "customer", "Data quality only", "Same address linked to many different names", address, record); }
   return enrichCustomerGroups(shopId, finish("customer", groups));
 }
 
 export async function findDuplicateVehicles(shopId: string) {
-  const vehicles = await prisma.vehicle.findMany({ where: { shopId }, orderBy: { id: "asc" }, select: { id: true, customerId: true, year: true, make: true, model: true, vin: true, licensePlate: true } });
-  const groups = new Map<string, CandidateGroup>(); const plateCounts = new Map<string, number>(); const vinCustomers = new Map<string, Set<string>>(); const customerPlates = new Map<string, number>();
-  for (const vehicle of vehicles) { const plate = validIdentifier(vehicle.licensePlate); const vin = validIdentifier(vehicle.vin); if (plate) plateCounts.set(plate, (plateCounts.get(plate) ?? 0) + 1); if (vin) { const customers = vinCustomers.get(vin) ?? new Set(); customers.add(vehicle.customerId); vinCustomers.set(vin, customers); } if (plate) { const key = `${vehicle.customerId}|${plate}`; customerPlates.set(key, (customerPlates.get(key) ?? 0) + 1); } }
+  const vehicles = await prisma.vehicle.findMany({ where: { shopId }, orderBy: { id: "asc" }, select: { id: true, year: true, make: true, model: true, vin: true, licensePlate: true } });
+  const groups = new Map<string, CandidateGroup>();
   for (const vehicle of vehicles) {
-    const record = { id: vehicle.id, customerId: vehicle.customerId }; const vin = validIdentifier(vehicle.vin); const plate = validIdentifier(vehicle.licensePlate); const make = words(vehicle.make); const model = words(vehicle.model); const ymm = vehicle.year && make && model ? `${vehicle.year}|${make}|${model}` : ""; const broadPlate = plate && (plateCounts.get(plate) ?? 0) > 3;
-    add(groups, "vehicle", "High", "Same valid VIN", vin.length >= 8 ? vin : "", record); add(groups, "vehicle", "High", "Same valid license plate", plate && !broadPlate ? plate : "", record); add(groups, "vehicle", "High", "Same customer, vehicle description, and VIN or plate", ymm && (vin || plate) ? `${vehicle.customerId}|${ymm}|${vin || plate}` : "", record);
-    add(groups, "vehicle", "Medium", "Same customer and year/make/model with identifiers missing", ymm && !vin && !plate ? `${vehicle.customerId}|${ymm}` : "", record); add(groups, "vehicle", "Medium", "Same valid plate and similar vehicle description", plate && ymm ? `${plate}|${ymm}` : "", record);
-    add(groups, "vehicle", "Low", "Same year/make/model across customers", ymm ? ymm : "", record); add(groups, "vehicle", "Low", "Same make/model only", make && model ? `${make}|${model}` : "", record);
-    const rawPlate = compact(vehicle.licensePlate); add(groups, "vehicle", "Data quality only", "Placeholder license plate", !plate ? rawPlate || "blank" : "", record); add(groups, "vehicle", "Data quality only", "Blank VIN and blank plate", !vin && !plate ? "all" : "", record); add(groups, "vehicle", "Data quality only", "License plate reused across many vehicles", broadPlate ? plate : "", record); add(groups, "vehicle", "Data quality only", "Same VIN linked to multiple customers", vin && (vinCustomers.get(vin)?.size ?? 0) > 1 ? vin : "", record); add(groups, "vehicle", "Data quality only", "Same customer has multiple vehicles with the same plate", plate && (customerPlates.get(`${vehicle.customerId}|${plate}`) ?? 0) > 1 ? `${vehicle.customerId}|${plate}` : "", record); add(groups, "vehicle", "Data quality only", "Missing year, make, or model", !vehicle.year || !make || !model ? "all" : "", record);
+    const record = { id: vehicle.id }; const rawPlate = compact(vehicle.licensePlate); const plate = validIdentifier(vehicle.licensePlate); const make = words(vehicle.make); const model = words(vehicle.model); const vinMissing = !compact(vehicle.vin);
+    add(groups, "vehicle", "High", "Same year, make, model, and valid license plate", vehicle.year && make && model && plate ? `${vehicle.year}|${make}|${model}|${plate}` : "", record);
+    add(groups, "vehicle", "Data quality only", "Missing license plate", !rawPlate ? "all" : "", record);
+    add(groups, "vehicle", "Data quality only", "Missing VIN", vinMissing ? "all" : "", record);
+    add(groups, "vehicle", "Data quality only", "Missing year, make, or model", !vehicle.year || !make || !model ? "all" : "", record);
+    add(groups, "vehicle", "Data quality only", "Placeholder license plate", rawPlate && !plate ? "all" : "", record);
   }
-  const finished = finish("vehicle", groups).filter((group) => !group.reason.includes("across customers") || new Set(group.records.map((record) => record.customerId)).size > 1);
-  return enrichVehicleGroups(shopId, finished);
+  return enrichVehicleGroups(shopId, finish("vehicle", groups));
 }
