@@ -16,7 +16,24 @@ type CustomerOption = {
   }>;
 };
 
-export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] }) {
+type VehicleSuggestion = { make: string | null; model: string | null };
+
+// A future VIN decoder can enrich these suggestions; inputs must remain freely editable.
+function cleanSuggestion(value: string) {
+  return value.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+export function NewRepairOrderForm({
+  customers,
+  citySuggestions,
+  vehicleSuggestions,
+}: {
+  customers: CustomerOption[];
+  citySuggestions: string[];
+  vehicleSuggestions: VehicleSuggestion[];
+}) {
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear + 2 - 1970 }, (_, index) => currentYear + 1 - index);
   const initialCustomer = customers[0];
   const [customerMode, setCustomerMode] = useState<"existing" | "new">(
     customers.length ? "existing" : "new",
@@ -28,9 +45,25 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
   const [vehicleMode, setVehicleMode] = useState<"existing" | "new">(
     initialCustomer?.vehicles.length ? "existing" : "new",
   );
+  const [newVehicleMake, setNewVehicleMake] = useState("");
   const vehicles = useMemo(
     () => customers.find((customer) => customer.id === customerId)?.vehicles ?? [],
     [customerId, customers],
+  );
+  const makeSuggestions = useMemo(
+    () => Array.from(new Set(vehicleSuggestions.flatMap(({ make }) => make ? [cleanSuggestion(make)] : []))).sort(),
+    [vehicleSuggestions],
+  );
+  const modelSuggestions = useMemo(() => {
+    const normalizedMake = cleanSuggestion(newVehicleMake);
+    return Array.from(new Set(vehicleSuggestions.flatMap(({ make, model }) => {
+      if (!model || (normalizedMake && cleanSuggestion(make ?? "") !== normalizedMake)) return [];
+      return [cleanSuggestion(model)];
+    }))).sort();
+  }, [newVehicleMake, vehicleSuggestions]);
+  const cities = useMemo(
+    () => Array.from(new Set(citySuggestions.map(cleanSuggestion))).sort(),
+    [citySuggestions],
   );
 
   function selectCustomer(nextCustomerId: string) {
@@ -69,8 +102,8 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
           <label className="text-sm font-semibold text-slate-800">Phone <span className="font-normal text-slate-500">(optional)</span><input name="phone" type="tel" maxLength={40} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <label className="text-sm font-semibold text-slate-800">Email <span className="font-normal text-slate-500">(optional)</span><input name="email" type="email" maxLength={254} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <label className="text-sm font-semibold text-slate-800 sm:col-span-2">Address <span className="font-normal text-slate-500">(optional)</span><input name="addressLine1" type="text" maxLength={200} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">City <span className="font-normal text-slate-500">(optional)</span><input name="city" type="text" maxLength={100} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">State <span className="font-normal text-slate-500">(optional)</span><input name="state" type="text" maxLength={30} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">City <span className="font-normal text-slate-500">(optional)</span><input name="city" type="text" list="customer-city-suggestions" maxLength={100} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="customer-city-suggestions">{cities.map((city) => <option key={city} value={city} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
+          <label className="text-sm font-semibold text-slate-800">State <span className="font-normal text-slate-500">(optional)</span><input name="state" type="text" maxLength={30} defaultValue="MI" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <label className="text-sm font-semibold text-slate-800">Postal code <span className="font-normal text-slate-500">(optional)</span><input name="postalCode" type="text" maxLength={20} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
         </div>}
       </fieldset>
@@ -91,9 +124,9 @@ export function NewRepairOrderForm({ customers }: { customers: CustomerOption[] 
             return <option key={vehicle.id} value={vehicle.id}>{label}</option>;
           })}
         </select> : <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-800">Year<input name="year" type="number" min="1886" max={new Date().getFullYear() + 1} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Make<input name="make" type="text" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Model<input name="model" type="text" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Year<select name="year" required defaultValue={currentYear} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal">{yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-800">Make<input name="make" type="text" list="vehicle-make-suggestions" maxLength={100} required value={newVehicleMake} onChange={(event) => setNewVehicleMake(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-make-suggestions">{makeSuggestions.map((make) => <option key={make} value={make} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
+          <label className="text-sm font-semibold text-slate-800">Model<input name="model" type="text" list="vehicle-model-suggestions" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-model-suggestions">{modelSuggestions.map((model) => <option key={model} value={model} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
           <label className="text-sm font-semibold text-slate-800">License plate <span className="font-normal text-slate-500">(optional)</span><input name="licensePlate" type="text" maxLength={30} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <label className="text-sm font-semibold text-slate-800">VIN <span className="font-normal text-slate-500">(optional)</span><input name="vin" type="text" maxLength={50} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
           <label className="text-sm font-semibold text-slate-800">Mileage <span className="font-normal text-slate-500">(optional)</span><input name="mileage" type="number" min="0" max="10000000" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
