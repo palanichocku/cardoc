@@ -1,0 +1,7 @@
+import { PageHeading } from "@/components/page-heading";
+import { HelpCard } from "@/components/help/help-card";
+import { HelpList, HelpSection } from "@/components/help/help-section";
+
+export default function CustomersHelpPage() {
+  return <div className="space-y-6"><PageHeading eyebrow="Help" title="Customers" description="Manage the people and organizations connected to shop work." /><section className="grid gap-4 md:grid-cols-3"><HelpCard title="Purpose" description="Keep one shop-scoped customer record connected to vehicles, repair orders, invoices, and service history." /><HelpCard title="Actions" description="Search, view, create during repair-order intake, edit contact details, and review linked history." /><HelpCard title="Result" description="The selected customer becomes the owner/billing link for vehicle and repair activity." /></section><HelpSection title="Recommended workflow"><HelpList items={["Search by name or phone before creating a record.", "Open customer detail to review vehicles and service history.", "Use Edit to correct the web database record; legacy files are never changed.", "Create a new customer with a new vehicle from New Repair Order when needed."]} /></HelpSection><HelpSection title="Expectation" warning><p>Imported customers can be edited in Car Doc, but those edits never write back to the Windows legacy files. Finalized invoice snapshots remain unchanged.</p></HelpSection></div>;
+}

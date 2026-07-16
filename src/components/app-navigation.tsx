@@ -11,6 +11,7 @@ const navigation = [
   { href: "/accounts-receivable", label: "Accounts Receivable", shortLabel: "A" },
   { href: "/repair-orders", label: "Repair Orders", shortLabel: "R" },
   { href: "/reports", label: "Reports", shortLabel: "P" },
+  { href: "/help", label: "Help", shortLabel: "H" },
   { href: "/admin", label: "Admin", shortLabel: "A" },
 ];
 

@@ -43,5 +43,5 @@ dbfiles.txt
 config_report_files.txt
 
 # Local cutover artifacts (may contain production database data)
-backups/
-reports/
+/backups/
+/reports/
