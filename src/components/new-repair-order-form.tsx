@@ -18,7 +18,6 @@ type CustomerOption = {
 
 type VehicleSuggestion = { make: string | null; model: string | null };
 
-// A future VIN decoder can enrich these suggestions; inputs must remain freely editable.
 function cleanSuggestion(value: string) {
   return value.trim().replace(/\s+/g, " ").toUpperCase();
 }
@@ -87,54 +86,136 @@ export function NewRepairOrderForm({
     setVehicleId(customer?.vehicles[0]?.id ?? "");
   }
 
+  const inputClass = "mt-1.5 w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 transition-all duration-150 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-500/10";
+  const labelClass = "text-xs font-semibold tracking-wide text-slate-600 uppercase";
+
   return (
-    <form action={createRepairOrder} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-slate-800">Customer</legend>
-        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-          <label className="flex items-center gap-2"><input type="radio" name="customerMode" value="existing" checked={customerMode === "existing"} disabled={!customers.length} onChange={() => selectCustomerMode("existing")} />Select existing customer</label>
-          <label className="flex items-center gap-2"><input type="radio" name="customerMode" value="new" checked={customerMode === "new"} onChange={() => selectCustomerMode("new")} />Add new customer</label>
+    <form action={createRepairOrder} className="mx-auto max-w-3xl space-y-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Create Repair Order</h2>
+        <p className="mt-1 text-sm text-slate-500">Initialize a new active check-in sheet or service draft.</p>
+      </div>
+
+      <fieldset className="space-y-5 border-t border-slate-100 pt-6">
+        <legend className="text-sm font-bold text-slate-800 tracking-wide">Customer Information</legend>
+        
+        <div className="inline-flex rounded-lg bg-slate-100 p-1 text-xs font-medium">
+          <button type="button" disabled={!customers.length} onClick={() => selectCustomerMode("existing")} className={`rounded-md px-4 py-1.5 transition-all ${customerMode === "existing" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900 disabled:opacity-50"}`}>
+            Existing Customer
+          </button>
+          <button type="button" onClick={() => selectCustomerMode("new")} className={`rounded-md px-4 py-1.5 transition-all ${customerMode === "new" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900"}`}>
+            New Customer
+          </button>
+          <input type="hidden" name="customerMode" value={customerMode} />
         </div>
-        {customerMode === "existing" ? <select id="customerId" name="customerId" aria-label="Existing customer" required value={customerId} onChange={(event) => selectCustomer(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100">
-          {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.displayName}</option>)}
-        </select> : <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">Name<input name="displayName" type="text" maxLength={200} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Phone <span className="font-normal text-slate-500">(optional)</span><input name="phone" type="tel" maxLength={40} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Email <span className="font-normal text-slate-500">(optional)</span><input name="email" type="email" maxLength={254} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">Address <span className="font-normal text-slate-500">(optional)</span><input name="addressLine1" type="text" maxLength={200} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">City <span className="font-normal text-slate-500">(optional)</span><input name="city" type="text" list="customer-city-suggestions" maxLength={100} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="customer-city-suggestions">{cities.map((city) => <option key={city} value={city} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
-          <label className="text-sm font-semibold text-slate-800">State <span className="font-normal text-slate-500">(optional)</span><input name="state" type="text" maxLength={30} defaultValue="MI" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Postal code <span className="font-normal text-slate-500">(optional)</span><input name="postalCode" type="text" maxLength={20} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-        </div>}
+
+        {customerMode === "existing" ? (
+          <div className="animate-fadeIn">
+            <label className={labelClass} htmlFor="customerId">Select Profile</label>
+            <select id="customerId" name="customerId" required value={customerId} onChange={(event) => selectCustomer(event.target.value)} className={inputClass}>
+              {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.displayName}</option>)}
+            </select>
+          </div>
+        ) : (
+          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-6 animate-fadeIn">
+            <label className={`${labelClass} sm:col-span-6`}>Customer Name <span className="text-red-500">*</span>
+              <input name="displayName" type="text" maxLength={200} required placeholder="John Doe" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-3`}>Phone Number
+              <input name="phone" type="tel" maxLength={40} placeholder="(555) 000-0000" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-3`}>Email Address
+              <input name="email" type="email" maxLength={254} placeholder="name@example.com" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-6`}>Street Address
+              <input name="addressLine1" type="text" maxLength={200} placeholder="123 Main St" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-3`}>City
+              <input name="city" type="text" list="customer-city-suggestions" maxLength={100} placeholder="Detroit" className={inputClass} />
+              <datalist id="customer-city-suggestions">{cities.map((city) => <option key={city} value={city} />)}</datalist>
+            </label>
+            <label className={`${labelClass} sm:col-span-1.5`}>State
+              <input name="state" type="text" maxLength={30} defaultValue="MI" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-1.5`}>Postal Code
+              <input name="postalCode" type="text" maxLength={20} placeholder="48201" className={inputClass} />
+            </label>
+          </div>
+        )}
       </fieldset>
-      <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-slate-800">Vehicle</legend>
-        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="existing" checked={vehicleMode === "existing"} disabled={customerMode === "new" || !vehicles.length} onChange={() => setVehicleMode("existing")} />Select existing vehicle</label>
-          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="new" checked={vehicleMode === "new"} onChange={() => setVehicleMode("new")} />Add new vehicle</label>
+
+      <fieldset className="space-y-5 border-t border-slate-100 pt-6">
+        <legend className="text-sm font-bold text-slate-800 tracking-wide">Vehicle Assignment</legend>
+        
+        <div className="inline-flex rounded-lg bg-slate-100 p-1 text-xs font-medium">
+          <button type="button" disabled={customerMode === "new" || !vehicles.length} onClick={() => setVehicleMode("existing")} className={`rounded-md px-4 py-1.5 transition-all ${vehicleMode === "existing" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900 disabled:opacity-40"}`}>
+            Existing Vehicle
+          </button>
+          <button type="button" onClick={() => setVehicleMode("new")} className={`rounded-md px-4 py-1.5 transition-all ${vehicleMode === "new" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900"}`}>
+            New Vehicle
+          </button>
+          <input type="hidden" name="vehicleMode" value={vehicleMode} />
         </div>
-        {vehicleMode === "existing" ? <select id="vehicleId" name="vehicleId" aria-label="Existing vehicle" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900">
-          {vehicles.map((vehicle) => {
-            const description = [vehicle.year, vehicle.make, vehicle.model]
-              .filter(Boolean)
-              .join(" ") || "Vehicle details unavailable";
-            const label = vehicle.licensePlate
-              ? `${description} · ${vehicle.licensePlate}`
-              : description;
-            return <option key={vehicle.id} value={vehicle.id}>{label}</option>;
-          })}
-        </select> : <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-800">Year<select name="year" required defaultValue={currentYear} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal">{yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-          <label className="text-sm font-semibold text-slate-800">Make<input name="make" type="text" list="vehicle-make-suggestions" maxLength={100} required value={newVehicleMake} onChange={(event) => setNewVehicleMake(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-make-suggestions">{makeSuggestions.map((make) => <option key={make} value={make} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
-          <label className="text-sm font-semibold text-slate-800">Model<input name="model" type="text" list="vehicle-model-suggestions" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-model-suggestions">{modelSuggestions.map((model) => <option key={model} value={model} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
-          <label className="text-sm font-semibold text-slate-800">License plate <span className="font-normal text-slate-500">(optional)</span><input name="licensePlate" type="text" maxLength={30} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">VIN <span className="font-normal text-slate-500">(optional)</span><input name="vin" type="text" maxLength={50} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-          <label className="text-sm font-semibold text-slate-800">Mileage <span className="font-normal text-slate-500">(optional)</span><input name="mileage" type="number" min="0" max="10000000" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
-        </div>}
+
+        {vehicleMode === "existing" ? (
+          <div className="animate-fadeIn">
+            <label className={labelClass} htmlFor="vehicleId">Select Active Vehicle</label>
+            <select id="vehicleId" name="vehicleId" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className={inputClass}>
+              {vehicles.map((vehicle) => {
+                const description = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Vehicle details unavailable";
+                return <option key={vehicle.id} value={vehicle.id}>{vehicle.licensePlate ? `${description} [${vehicle.licensePlate}]` : description}</option>;
+              })}
+            </select>
+          </div>
+        ) : (
+          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-6 animate-fadeIn">
+            <label className={`${labelClass} sm:col-span-2`}>Model Year <span className="text-red-500">*</span>
+              <select name="year" required defaultValue={currentYear} className={inputClass}>
+                {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </label>
+            <label className={`${labelClass} sm:col-span-2`}>Make <span className="text-red-500">*</span>
+              <input name="make" type="text" list="vehicle-make-suggestions" maxLength={100} required value={newVehicleMake} onChange={(event) => setNewVehicleMake(event.target.value)} placeholder="e.g. FORD" className={inputClass} />
+              <datalist id="vehicle-make-suggestions">{makeSuggestions.map((make) => <option key={make} value={make} />)}</datalist>
+            </label>
+            <label className={`${labelClass} sm:col-span-2`}>Model <span className="text-red-500">*</span>
+              <input name="model" type="text" list="vehicle-model-suggestions" maxLength={100} required placeholder="e.g. F-150" className={inputClass} />
+              <datalist id="vehicle-model-suggestions">{modelSuggestions.map((model) => <option key={model} value={model} />)}</datalist>
+            </label>
+            <label className={`${labelClass} sm:col-span-2`}>License Plate
+              <input name="licensePlate" type="text" maxLength={30} placeholder="ABC-1234" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-2`}>VIN
+              <input name="vin" type="text" maxLength={50} placeholder="17-Digit Vehicle ID" className={inputClass} />
+            </label>
+            <label className={`${labelClass} sm:col-span-2`}>Current Odometer
+              <input name="mileage" type="number" min="0" max="10000000" placeholder="0" className={inputClass} />
+            </label>
+          </div>
+        )}
       </fieldset>
-      {customerMode === "new" && <p className="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800">A new customer must be created with a new vehicle.</p>}
-      <p className="text-sm text-slate-600">This creates a draft only. Parts, labor, and invoice finalization are not included yet.</p>
-      <FormSubmitButton pendingLabel="Creating draft…" disabled={(customerMode === "existing" && !customerId) || (vehicleMode === "existing" && !vehicleId)} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</FormSubmitButton>
+
+      <div className="space-y-4 border-t border-slate-100 pt-6">
+        {customerMode === "new" && (
+          <div className="flex gap-3 rounded-xl bg-sky-50 p-4 text-sm text-sky-800">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">i</span>
+            <p className="font-medium">System Constraint: Creating a brand new customer requires capturing initial vehicle information context sequentially.</p>
+          </div>
+        )}
+        
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-50 rounded-xl p-4">
+          <p className="text-xs text-slate-500 max-w-md">
+            Drafting does not lock order sequence counters or affect live inventory items. Parts configuration interfaces activate once the workspace profile passes draft validation stages.
+          </p>
+          <FormSubmitButton 
+            pendingLabel="Saving..." 
+            disabled={(customerMode === "existing" && !customerId) || (vehicleMode === "existing" && !vehicleId)} 
+            className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          >
+            Save Document Draft
+          </FormSubmitButton>
+        </div>
+      </div>
     </form>
   );
 }

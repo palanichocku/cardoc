@@ -25,51 +25,160 @@ export default async function ReportsPage({
   const { membership } = await getCurrentMembership();
   if (!membership) return null;
   if (!hasPermission(membership.role, "view_reports")) return <PermissionDenied />;
+  
   const now = new Date();
   const defaultFrom = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
   const defaultTo = isoDate(now);
   const from = validDate(params.from) ? params.from! : defaultFrom;
   const to = validDate(params.to) ? params.to! : defaultTo;
+  
   const start = new Date(`${from}T00:00:00Z`);
   const requestedEnd = new Date(`${to}T00:00:00Z`);
   const safeEnd = requestedEnd < start ? start : requestedEnd;
   const endExclusive = new Date(safeEnd);
   endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+  
   const report = await getShopReport({ start, endExclusive });
-
   if (!report) return null;
 
   const cards = [
-    ["Invoice Count", report.invoiceTotals._count._all.toLocaleString()],
-    ["Gross Sales", formatMoney(report.invoiceTotals._sum.total)],
-    ["Parts Total", formatMoney(report.invoiceTotals._sum.partsTotal)],
-    ["Labor Total", formatMoney(report.invoiceTotals._sum.laborTotal)],
-    ["Tax Total", formatMoney(report.invoiceTotals._sum.taxTotal)],
-    ["Payments Received", formatMoney(report.invoiceTotals._sum.paidTotal)],
-    ["Receivables", formatMoney(report.receivablesTotal)],
+    { label: "Invoice Count", value: report.invoiceTotals._count._all.toLocaleString(), highlight: false },
+    { label: "Gross Sales", value: formatMoney(report.invoiceTotals._sum.total), highlight: true },
+    { label: "Parts Total", value: formatMoney(report.invoiceTotals._sum.partsTotal), highlight: false },
+    { label: "Labor Total", value: formatMoney(report.invoiceTotals._sum.laborTotal), highlight: false },
+    { label: "Tax Total", value: formatMoney(report.invoiceTotals._sum.taxTotal), highlight: false },
+    { label: "Payments Received", value: formatMoney(report.invoiceTotals._sum.paidTotal), highlight: false },
+    { label: "Receivables", value: formatMoney(report.receivablesTotal), highlight: false },
   ];
 
-  return <>
-    <PageHeading eyebrow="Analytics" title="Reports" description="Recorded shop activity and balances for a selected date range." />
-    <form action="/reports" className="mb-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <label className="text-sm font-semibold text-slate-700">From<input name="from" type="date" required defaultValue={from} className="mt-1.5 block rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
-      <label className="text-sm font-semibold text-slate-700">To<input name="to" type="date" required defaultValue={to} className="mt-1.5 block rounded-lg border border-slate-300 px-3 py-2 font-normal" /></label>
-      <button className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700" type="submit">Run report</button>
-    </form>
+  const inputClass = "mt-1.5 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 font-medium shadow-2xs outline-none transition-all focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10";
 
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950">{value}</p></article>)}
-    </section>
-    <p className="mt-3 text-xs text-slate-500">Payments Received reflects paid totals on invoices in the selected date range.</p>
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <PageHeading eyebrow="Analytics" title="Reports" description="Recorded shop activity, sales breakdowns, and balances for a selected date range." />
+      
+      {/* Premium Filter Control Panel */}
+      <form action="/reports" className="flex flex-col sm:flex-row items-end gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="w-full sm:w-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            From Date
+            <input name="from" type="date" required defaultValue={from} className={inputClass} />
+          </label>
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            To Date
+            <input name="to" type="date" required defaultValue={to} className={inputClass} />
+          </label>
+        </div>
+        <button 
+          className="w-full sm:w-auto rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20" 
+          type="submit"
+        >
+          Run Report
+        </button>
+      </form>
 
-    <ReportSection title="Invoices in range" empty="No invoices were recorded in this date range." headings={["Invoice / RO", "Date", "Status", "Parts", "Labor", "Total"]}>
-      {report.invoices.map((invoice) => <tr key={invoice.id}><td className="px-5 py-4"><Link href={`/invoices/${invoice.id}`} className="font-semibold text-sky-700 hover:text-sky-800">RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}</Link></td><td className="px-5 py-4 text-slate-600">{formatDate(invoice.invoiceDate)}</td><td className="px-5 py-4 capitalize text-slate-600">{invoice.status}</td><td className="px-5 py-4 text-right">{formatMoney(invoice.partsTotal)}</td><td className="px-5 py-4 text-right">{formatMoney(invoice.laborTotal)}</td><td className="px-5 py-4 text-right font-semibold">{formatMoney(invoice.total)}</td></tr>)}
-    </ReportSection>
+      {/* Metrics Performance Grid */}
+      <div>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {cards.map(({ label, value, highlight }) => (
+            <article 
+              key={label} 
+              className={`rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md ${
+                highlight 
+                  ? "border-sky-200 bg-sky-50/40 ring-1 ring-sky-100" 
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <p className={`text-xs font-bold uppercase tracking-wider ${highlight ? "text-sky-700" : "text-slate-400"}`}>
+                {label}
+              </p>
+              <p className="mt-2 text-2xl font-black tracking-tight text-slate-900">
+                {value}
+              </p>
+            </article>
+          ))}
+        </section>
+        <p className="mt-3 text-xs font-medium italic text-slate-400">
+          * Payments Received reflects total cash collection records processed inside this specific date interval.
+        </p>
+      </div>
 
-  </>;
+      {/* Invoice Data Grid Output */}
+      <ReportSection 
+        title="Invoices in Range" 
+        empty="No invoices or closed repair manifests were recorded in this date range." 
+        headings={["Invoice / RO", "Date", "Status", "Parts", "Labor", "Total"]}
+      >
+        {report.invoices.map((invoice) => (
+          <tr key={invoice.id} className="group transition-colors hover:bg-slate-50/60">
+            <td className="px-5 py-3.5 text-sm">
+              <Link 
+                href={`/invoices/${invoice.id}`} 
+                className="font-bold text-sky-600 hover:text-sky-700 hover:underline transition-colors"
+              >
+                RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Draft"}
+              </Link>
+            </td>
+            <td className="px-5 py-3.5 text-sm font-medium text-slate-500">
+              {formatDate(invoice.invoiceDate)}
+            </td>
+            <td className="px-5 py-3.5 text-sm">
+              <span className="inline-flex rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 shadow-2xs capitalize">
+                {invoice.status}
+              </span>
+            </td>
+            <td className="px-5 py-3.5 text-sm text-right font-medium text-slate-500">
+              {formatMoney(invoice.partsTotal)}
+            </td>
+            <td className="px-5 py-3.5 text-sm text-right font-medium text-slate-500">
+              {formatMoney(invoice.laborTotal)}
+            </td>
+            <td className="px-5 py-3.5 text-sm text-right font-black text-slate-900">
+              {formatMoney(invoice.total)}
+            </td>
+          </tr>
+        ))}
+      </ReportSection>
+    </div>
+  );
 }
 
 function ReportSection({ title, empty, headings, children }: { title: string; empty: string; headings: string[]; children: React.ReactNode }) {
   const rows = Array.isArray(children) ? children : [children];
-  return <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-5 py-4"><h2 className="text-lg font-semibold text-slate-950">{title}</h2></div>{rows.length === 0 ? <p className="px-5 py-8 text-sm text-slate-600">{empty}</p> : <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-slate-600"><tr>{headings.map((heading, index) => <th key={heading} className={`px-5 py-3 ${index >= headings.length - 3 ? "text-right" : ""}`}>{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-200">{children}</tbody></table></div>}<p className="border-t border-slate-200 px-5 py-3 text-xs text-slate-500">Showing up to 100 rows.</p></section>;
+  const thClass = "px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 select-none";
+  
+  return (
+    <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-4">
+        <h2 className="text-base font-bold text-slate-900">{title}</h2>
+      </div>
+      
+      {rows.length === 0 ? (
+        <p className="px-5 py-8 text-sm font-medium text-slate-400 text-center italic bg-white">{empty}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/75">
+                {headings.map((heading, index) => (
+                  <th 
+                    key={heading} 
+                    className={`${thClass} ${index >= headings.length - 3 ? "text-right" : ""}`}
+                  >
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {children}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="border-t border-slate-100 bg-slate-50/30 px-5 py-3 text-xs font-medium text-slate-400 italic">
+        Showing up to 100 rows matching search parameters.
+      </div>
+    </section>
+  );
 }

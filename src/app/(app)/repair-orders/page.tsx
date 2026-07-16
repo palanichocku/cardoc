@@ -13,18 +13,129 @@ type RepairOrder = Awaited<
 export const dynamic = "force-dynamic";
 
 export default async function RepairOrdersPage() {
-  const [orders, { membership }] = await Promise.all([getOpenOrdersForCurrentShop(), getCurrentMembership()]);
+  const [orders, { membership }] = await Promise.all([
+    getOpenOrdersForCurrentShop(),
+    getCurrentMembership()
+  ]);
   const canDelete = Boolean(membership && hasPermission(membership.role, "delete_draft_repair_order"));
 
-  return <>
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <PageHeading eyebrow="Work in progress" title="Repair Orders" description="Draft and open repair orders that have not been finalized as invoices." />
-      <Link href="/repair-orders/new" className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700">New Repair Order</Link>
+  const thClass = "px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 select-none";
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Dynamic Header Strip Frame */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeading 
+          eyebrow="Work in progress" 
+          title="Repair Orders" 
+          description="Active garage floor repair orders and drafts that have not been finalized as invoices." 
+        />
+        <Link 
+          href="/repair-orders/new" 
+          className="self-start sm:self-auto rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20"
+        >
+          New Repair Order
+        </Link>
+      </div>
+
+      {/* Main Stream Display Logic */}
+      {orders.length === 0 ? (
+        <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">No active repair orders</h2>
+          <p className="mx-auto mt-1 max-w-lg text-sm text-slate-500">
+            Open garage tickets and staging repair drafts for this shop will appear here.
+          </p>
+        </section>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Informational Sub-Panel matching Invoices layout exactly */}
+          <div className="border-b border-slate-100 bg-slate-50/40 px-5 py-3 text-xs font-medium text-slate-400 italic">
+            Showing the most recent open repair orders
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[950px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/75">
+                  <th className={thClass}>RO # / Date</th>
+                  <th className={thClass}>Customer</th>
+                  <th className={thClass}>Vehicle</th>
+                  <th className={thClass}>Status / Scope</th>
+                  <th className={thClass}>Estimated Total</th>
+                  <th className={`${thClass} text-right pr-6`}>Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {orders.map((order: RepairOrder) => {
+                  const imported = Boolean(order.legacySourceTable);
+                  const vehicleDescription = [order.vehicle.year, order.vehicle.make, order.vehicle.model]
+                    .filter(Boolean)
+                    .join(" ") || "Vehicle details unavailable";
+
+                  return (
+                    <tr key={order.id} className="group transition-colors hover:bg-slate-50/60">
+                      {/* RO Reference Target */}
+                      <td className="px-5 py-3.5 text-sm">
+                        <Link 
+                          href={imported ? `/open-orders/${order.id}` : `/repair-orders/${order.id}`} 
+                          className="block font-bold text-slate-900 hover:text-sky-600 transition-colors"
+                        >
+                          RO #{order.repairOrderNumber ?? order.legacyRoNo ?? "Draft"}
+                        </Link>
+                        <span className="block text-xs font-medium text-slate-400 mt-0.5">
+                          {formatDate(order.openedAt)}
+                        </span>
+                      </td>
+
+                      {/* Profile Subject Name */}
+                      <td className="px-5 py-3.5 text-sm font-semibold text-slate-700 truncate max-w-[160px]">
+                        {order.customer.displayName}
+                      </td>
+
+                      {/* Asset Registry Attributes */}
+                      <td className="px-5 py-3.5 text-sm text-slate-500 font-medium truncate max-w-[200px]">
+                        {vehicleDescription}
+                      </td>
+
+                      {/* Operational Phase Flags */}
+                      <td className="px-5 py-3.5 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border ${
+                            imported 
+                              ? "bg-amber-50 text-amber-700 border-amber-200 shadow-2xs" 
+                              : "bg-sky-50 text-sky-700 border-sky-200 shadow-2xs"
+                          }`}>
+                            {order.status}{imported ? " · Read Only" : ""}
+                          </span>
+                        </div>
+                        <span className="block text-xs font-medium text-slate-400 mt-1">
+                          {order._count.parts} parts · {order._count.labor} labor items
+                        </span>
+                      </td>
+
+                      {/* Cumulative Pricing Matrix */}
+                      <td className="px-5 py-3.5 text-sm font-black text-slate-900">
+                        {formatMoney(order.estimatedTotal)}
+                      </td>
+
+                      {/* Structural Row Trailing Context Button Elements */}
+                      <td className="px-5 py-3.5 text-right pr-6 whitespace-nowrap">
+                        {!imported && canDelete ? (
+                          <div className="inline-block opacity-60 group-hover:opacity-100 transition-opacity">
+                            <DeleteRepairOrderButton repairOrderId={order.id} compact />
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-300 select-none cursor-default">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
-    {orders.length === 0 ? <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm"><h2 className="text-xl font-semibold text-slate-950">No repair orders</h2><p className="mt-2 text-sm text-slate-600">Draft and open work for this shop will appear here.</p></section> : <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><ul className="divide-y divide-slate-200">{orders.map((order: RepairOrder) => {
-      const imported = Boolean(order.legacySourceTable);
-      const vehicle = [order.vehicle.year, order.vehicle.make, order.vehicle.model].filter(Boolean).join(" ") || "Vehicle details unavailable";
-      return <li key={order.id} className="flex items-center pr-3 hover:bg-slate-50"><Link href={imported ? `/open-orders/${order.id}` : `/repair-orders/${order.id}`} className="grid min-w-0 flex-1 gap-2 px-5 py-4 md:grid-cols-[0.9fr_1.2fr_1.2fr_1fr_0.8fr] md:items-center"><span><span className="block font-semibold text-slate-950">RO #{order.repairOrderNumber ?? order.legacyRoNo ?? "Not recorded"}</span><span className="text-sm text-slate-500">{formatDate(order.openedAt)}</span></span><span className="truncate text-sm text-slate-700">{order.customer.displayName}</span><span className="truncate text-sm text-slate-600">{vehicle}</span><span><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${imported ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"}`}>{order.status}{imported ? " · read-only" : ""}</span><span className="mt-1 block text-xs text-slate-500">{order._count.parts} parts · {order._count.labor} labor</span></span><span className="text-sm font-medium text-slate-900">{formatMoney(order.estimatedTotal)}</span></Link>{!imported && canDelete && <DeleteRepairOrderButton repairOrderId={order.id} compact />}</li>;
-    })}</ul></section>}
-  </>;
+  );
 }

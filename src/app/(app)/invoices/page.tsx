@@ -19,17 +19,19 @@ export default async function InvoicesPage({
   const search = q?.trim() ?? "";
   const { invoices, hasNext } = await getInvoicesForCurrentShop(search, page);
 
+  const thClass = "px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 select-none";
+
   return (
-    <>
+    <div className="space-y-6 animate-fadeIn">
       <PageHeading
         eyebrow="Billing"
         title="Invoices"
-        description="Recent invoice and service history for your current shop."
+        description="Recent invoice ledger balances and historically settled customer invoices."
       />
 
       <form
         action="/invoices"
-        className="mb-6 flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="flex gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
       >
         <label htmlFor="invoice-search" className="sr-only">
           Search invoices
@@ -39,12 +41,12 @@ export default async function InvoicesPage({
           name="q"
           type="search"
           defaultValue={search}
-          placeholder="Search RO, customer, vehicle, or license"
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+          placeholder="Search by RO number, customer name, vehicle, or license..."
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 transition-all focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10"
         />
         <button
           type="submit"
-          className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
+          className="rounded-lg bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20"
         >
           Search
         </button>
@@ -52,76 +54,96 @@ export default async function InvoicesPage({
 
       {invoices.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-950">
-            {search ? "No matching invoices" : "No invoices yet"}
+          <h2 className="text-lg font-bold text-slate-900">
+            {search ? "No matching invoices found" : "No invoices yet"}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mx-auto mt-1 max-w-lg text-sm text-slate-500">
             {search
-              ? "Try a different RO number, customer, vehicle, or license."
-              : "Invoice records for this shop will appear here."}
+              ? "Try typing alternative repair indices or check digits."
+              : "Settled repair folders catalog under live shop billing records automatically."}
           </p>
           {search && (
             <Link
               href="/invoices"
-              className="mt-5 inline-block text-sm font-semibold text-sky-700 hover:text-sky-800"
+              className="mt-4 inline-block text-xs font-bold uppercase tracking-wider text-sky-600 hover:text-sky-700"
             >
-              Clear search
+              Clear filter view
             </Link>
           )}
         </section>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4 text-sm text-slate-600">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Subtle informational sub-header panel */}
+          <div className="border-b border-slate-100 bg-slate-50/40 px-5 py-3 text-xs font-medium text-slate-400 italic">
             {search
-              ? `Showing up to 50 matches for “${search}”`
-              : "Showing the most recent 50 invoices"}
+              ? `Showing localized sequence results matching “${search}”`
+              : "Showing most recent batch ledger invoices"}
           </div>
-          <ul className="divide-y divide-slate-200">
-            {invoices.map((invoice: InvoiceListItem) => {
-              const vehicle = invoice.vehicle
-                ? [invoice.vehicle.year, invoice.vehicle.make, invoice.vehicle.model]
-                    .filter(Boolean)
-                    .join(" ") || "Vehicle details unavailable"
-                : "Vehicle not linked";
-              const balance = invoice.accountsReceivable[0]?.balance;
 
-              return (
-                <li key={invoice.id}>
-                  <Link
-                    href={`/invoices/${invoice.id}`}
-                    className="grid gap-2 px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[0.8fr_1.2fr_1.2fr_0.8fr_0.8fr] md:items-center"
-                  >
-                    <span>
-                      <span className="block font-semibold text-slate-950">
-                        RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        {formatDate(invoice.invoiceDate)}
-                      </span>
-                    </span>
-                    <span className="truncate text-sm text-slate-700">
-                      {invoice.customer.displayName}
-                    </span>
-                    <span className="truncate text-sm text-slate-600">{vehicle}</span>
-                    <span className="text-sm font-medium text-slate-900">
-                      {formatMoney(invoice.total)}
-                    </span>
-                    <span className="text-sm text-slate-600">
-                      Balance {balance ? formatMoney(balance) : "unavailable"}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/75">
+                  <th className={thClass}>Invoice / RO</th>
+                  <th className={thClass}>Customer</th>
+                  <th className={thClass}>Linked Vehicle</th>
+                  <th className={thClass}>Total</th>
+                  <th className={thClass}>Balance Due</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {invoices.map((invoice: InvoiceListItem) => {
+                  const vehicleDescription = invoice.vehicle
+                    ? [invoice.vehicle.year, invoice.vehicle.make, invoice.vehicle.model]
+                        .filter(Boolean)
+                        .join(" ") || "Vehicle details unavailable"
+                    : "Vehicle not linked";
+                  
+                  const balance = invoice.accountsReceivable[0]?.balance;
+
+                  return (
+                    <tr key={invoice.id} className="group transition-colors hover:bg-slate-50/60">
+                      <td className="px-5 py-3.5 text-sm">
+                        <Link href={`/invoices/${invoice.id}`} className="block font-bold text-slate-900 hover:text-sky-600 transition-colors">
+                          RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Draft"}
+                        </Link>
+                        <span className="block text-xs font-medium text-slate-400 mt-0.5">
+                          {formatDate(invoice.invoiceDate)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-semibold text-slate-700 truncate max-w-[180px]">
+                        {invoice.customer.displayName}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-slate-500 font-medium truncate max-w-[200px]">
+                        {vehicleDescription}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-black text-slate-900">
+                        {formatMoney(invoice.total)}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-medium">
+                        {balance && Number(balance) > 0 ? (
+                          <span className="inline-flex rounded-md bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600 border border-red-100 shadow-2xs">
+                            {formatMoney(balance)}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-400">Paid In Full</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
+
       <Pagination
         pathname="/invoices"
         page={page}
         hasNext={hasNext}
         search={search}
       />
-    </>
+    </div>
   );
 }
