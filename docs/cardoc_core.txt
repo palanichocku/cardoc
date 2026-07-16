@@ -1,0 +1,916 @@
+=== FILE: prisma/schema.prisma ===
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Plain Node.js maintenance scripts currently consume this packaged client.
+generator scriptClient {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ShopMembershipRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+model Shop {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  addressLine1        String?               @map("address_line1")
+  city                String?
+  state               String?
+  postalCode          String?               @map("postal_code")
+  phone               String?
+  defaultTaxRate      Decimal               @default(0) @map("default_tax_rate") @db.Decimal(6, 3)
+  defaultLaborRate    Decimal               @default(0) @map("default_labor_rate") @db.Decimal(12, 2)
+  partsTaxable        Boolean               @default(true) @map("parts_taxable")
+  laborTaxable        Boolean               @default(false) @map("labor_taxable")
+  invoiceFooterMessage String?               @map("invoice_footer_message")
+  warrantyText        String?                @map("warranty_text")
+  nextRepairOrderNumber Int                   @default(1) @map("next_repair_order_number")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at")
+  customers           Customer[]
+  vehicles            Vehicle[]
+  repairOrders        RepairOrder[]
+  repairOrderParts    RepairOrderPart[]
+  repairOrderLabor    RepairOrderLabor[]
+  invoices            Invoice[]
+  invoiceParts        InvoicePart[]
+  invoiceLabor        InvoiceLabor[]
+  payments            Payment[]
+  accountsReceivable  AccountReceivable[]
+  employees           Employee[]
+  memberships         ShopMembership[]
+  rawLegacyCustomers  RawLegacyCustomer[]
+  rawLegacyVehicles   RawLegacyVehicle[]
+  rawLegacyFinal      RawLegacyFinal[]
+  rawLegacyLaborFinal RawLegacyLaborFinal[]
+  rawLegacyAr         RawLegacyAr[]
+  rawLegacyOrderParts RawLegacyOrderPart[]
+  rawLegacyOrderLabor RawLegacyOrderLabor[]
+  legacyImportRuns    LegacyImportRun[]
+  legacyImportErrors  LegacyImportError[]
+  cannedServices      CannedService[]
+  auditLogs           AuditLog[]
+  staffInvites        StaffInvite[]
+
+  @@map("shops")
+}
+
+model CannedService {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId           String   @map("shop_id") @db.Uuid
+  name             String
+  description      String
+  defaultHours     Decimal  @default(1) @map("default_hours") @db.Decimal(8, 2)
+  defaultLaborRate Decimal  @default(0) @map("default_labor_rate") @db.Decimal(12, 2)
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, name])
+  @@index([shopId, active])
+  @@map("canned_services")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId     String   @map("shop_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id") @db.Uuid
+  actorEmail String?  @map("actor_email")
+  actorRole  String?  @map("actor_role")
+  entityLabel String? @map("entity_label")
+  entityHref String?  @map("entity_href")
+  contextSummary String? @map("context_summary")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@index([shopId, entityType, entityId])
+  @@map("audit_logs")
+}
+
+model StaffInvite {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId          String             @map("shop_id") @db.Uuid
+  email           String
+  role            ShopMembershipRole @default(STAFF)
+  status          String             @default("pending")
+  invitedByUserId String?            @map("invited_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at")
+  shop            Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, email])
+  @@index([shopId, status])
+  @@map("staff_invites")
+}
+
+model ShopMembership {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId    String             @map("shop_id") @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  userEmail String?            @map("user_email")
+  role      ShopMembershipRole @default(STAFF)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @default(now()) @updatedAt @map("updated_at")
+  shop      Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, userId])
+  @@index([userId])
+  @@map("shop_memberships")
+}
+
+model Customer {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId             String              @map("shop_id") @db.Uuid
+  displayName        String              @map("display_name")
+  email              String?
+  phone              String?
+  phone2             String?
+  addressLine1       String?             @map("address_line1")
+  addressLine2       String?             @map("address_line2")
+  city               String?
+  state              String?
+  postalCode         String?             @map("postal_code")
+  notes              String?
+  message            String?
+  legacyCustno       String?             @map("legacy_custno")
+  legacySourceTable  String?             @map("legacy_source_table")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at")
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  vehicles           Vehicle[]
+  repairOrders       RepairOrder[]
+  invoices           Invoice[]
+  payments           Payment[]
+  accountsReceivable AccountReceivable[]
+
+  @@unique([shopId, legacyCustno])
+  @@index([legacyCustno])
+  @@index([shopId, displayName])
+  @@map("customers")
+}
+
+model Vehicle {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String        @map("shop_id") @db.Uuid
+  customerId        String        @map("customer_id") @db.Uuid
+  year              Int?
+  make              String?
+  model             String?
+  engine            String?
+  vin               String?
+  licensePlate      String?       @map("license_plate")
+  odometer          Int?
+  notes             String?
+  message           String?
+  legacyCarno       String?       @map("legacy_carno")
+  legacySourceTable String?       @map("legacy_source_table")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer          Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  repairOrders      RepairOrder[]
+  invoices          Invoice[]
+
+  @@unique([shopId, legacyCarno])
+  @@index([legacyCarno])
+  @@index([shopId, customerId])
+  @@index([shopId, vin])
+  @@index([shopId, licensePlate])
+  @@map("vehicles")
+}
+
+model RepairOrder {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId             String             @map("shop_id") @db.Uuid
+  customerId         String             @map("customer_id") @db.Uuid
+  vehicleId          String             @map("vehicle_id") @db.Uuid
+  assignedEmployeeId String?            @map("assigned_employee_id") @db.Uuid
+  status             String             @default("draft")
+  openedAt           DateTime           @default(now()) @map("opened_at")
+  closedAt           DateTime?          @map("closed_at")
+  odometer           Int?
+  concern            String?
+  notes              String?
+  partsTotal         Decimal            @default(0) @map("parts_total") @db.Decimal(12, 2)
+  laborTotal         Decimal            @default(0) @map("labor_total") @db.Decimal(12, 2)
+  taxTotal           Decimal            @default(0) @map("tax_total") @db.Decimal(12, 2)
+  estimatedTotal     Decimal            @default(0) @map("estimated_total") @db.Decimal(12, 2)
+  repairOrderNumber  Int?               @map("repair_order_number")
+  legacyRoNo         String?            @map("legacy_ro_no")
+  legacySourceTable  String?            @map("legacy_source_table")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
+  shop               Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer           @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle            @relation(fields: [vehicleId], references: [id])
+  assignedEmployee   Employee?          @relation(fields: [assignedEmployeeId], references: [id])
+  parts              RepairOrderPart[]
+  labor              RepairOrderLabor[]
+  invoices           Invoice[]
+
+  @@unique([shopId, legacyRoNo])
+  @@unique([shopId, repairOrderNumber])
+  @@index([legacyRoNo])
+  @@index([shopId, status])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@map("repair_orders")
+}
+
+model RepairOrderPart {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String      @map("shop_id") @db.Uuid
+  repairOrderId     String      @map("repair_order_id") @db.Uuid
+  description       String
+  partNumber        String?     @map("part_number")
+  quantity          Decimal     @default(1) @db.Decimal(10, 2)
+  unitPrice         Decimal     @default(0) @map("unit_price") @db.Decimal(12, 2)
+  legacyLineKey     String      @map("legacy_line_key")
+  legacyRoNo        String?     @map("legacy_ro_no")
+  legacySourceTable String?     @map("legacy_source_table")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at")
+  shop              Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder       RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyLineKey])
+  @@index([repairOrderId])
+  @@index([shopId, legacyRoNo])
+  @@map("repair_order_parts")
+}
+
+model RepairOrderLabor {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String      @map("shop_id") @db.Uuid
+  repairOrderId     String      @map("repair_order_id") @db.Uuid
+  description       String
+  hours             Decimal     @default(0) @db.Decimal(8, 2)
+  hourlyRate        Decimal     @default(0) @map("hourly_rate") @db.Decimal(12, 2)
+  legacyLineKey     String      @map("legacy_line_key")
+  legacyRoNo        String?     @map("legacy_ro_no")
+  legacySourceTable String?     @map("legacy_source_table")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at")
+  shop              Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder       RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyLineKey])
+  @@index([repairOrderId])
+  @@index([shopId, legacyRoNo])
+  @@map("repair_order_labor")
+}
+
+model Invoice {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId             String              @map("shop_id") @db.Uuid
+  repairOrderId      String?             @map("repair_order_id") @db.Uuid
+  customerId         String              @map("customer_id") @db.Uuid
+  vehicleId          String?             @map("vehicle_id") @db.Uuid
+  status             String              @default("draft")
+  invoiceDate        DateTime?           @map("invoice_date")
+  dueAt              DateTime?           @map("due_at")
+  partsTotal         Decimal             @default(0) @map("parts_total") @db.Decimal(12, 2)
+  laborTotal         Decimal             @default(0) @map("labor_total") @db.Decimal(12, 2)
+  subtotal           Decimal             @default(0) @db.Decimal(12, 2)
+  taxTotal           Decimal             @default(0) @map("tax_total") @db.Decimal(12, 2)
+  total              Decimal             @default(0) @db.Decimal(12, 2)
+  paidTotal          Decimal             @default(0) @map("paid_total") @db.Decimal(12, 2)
+  repairOrderNumber  Int?                @map("repair_order_number")
+  shopSnapshot       Json?               @map("shop_snapshot")
+  customerSnapshot   Json?               @map("customer_snapshot")
+  vehicleSnapshot    Json?               @map("vehicle_snapshot")
+  legacyRoNo         String?             @map("legacy_ro_no")
+  legacySourceTable  String?             @map("legacy_source_table")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at")
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder        RepairOrder?        @relation(fields: [repairOrderId], references: [id])
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle?            @relation(fields: [vehicleId], references: [id])
+  parts              InvoicePart[]
+  labor              InvoiceLabor[]
+  payments           Payment[]
+  accountsReceivable AccountReceivable[]
+
+  @@unique([shopId, legacyRoNo])
+  @@unique([repairOrderId])
+  @@unique([shopId, repairOrderNumber])
+  @@index([legacyRoNo])
+  @@index([shopId, invoiceDate])
+  @@index([shopId, status])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+model InvoicePart {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String   @map("shop_id") @db.Uuid
+  invoiceId         String   @map("invoice_id") @db.Uuid
+  description       String
+  partNumber        String?  @map("part_number")
+  quantity          Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice         Decimal  @default(0) @map("unit_price") @db.Decimal(12, 2)
+  legacyLineKey     String   @map("legacy_line_key")
+  legacyRoNo        String?  @map("legacy_ro_no")
+  legacySourceTable String?  @map("legacy_source_table")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyLineKey])
+  @@index([invoiceId])
+  @@index([shopId, legacyRoNo])
+  @@map("invoice_parts")
+}
+
+model InvoiceLabor {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String   @map("shop_id") @db.Uuid
+  invoiceId         String   @map("invoice_id") @db.Uuid
+  description       String
+  hours             Decimal  @default(0) @db.Decimal(8, 2)
+  hourlyRate        Decimal  @default(0) @map("hourly_rate") @db.Decimal(12, 2)
+  legacyLineKey     String   @map("legacy_line_key")
+  legacyRoNo        String?  @map("legacy_ro_no")
+  legacySourceTable String?  @map("legacy_source_table")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyLineKey])
+  @@index([invoiceId])
+  @@index([shopId, legacyRoNo])
+  @@map("invoice_labor")
+}
+
+model Payment {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String    @map("shop_id") @db.Uuid
+  invoiceId         String?   @map("invoice_id") @db.Uuid
+  customerId        String?   @map("customer_id") @db.Uuid
+  amount            Decimal   @db.Decimal(12, 2)
+  method            String?
+  paidAt            DateTime  @default(now()) @map("paid_at")
+  reference         String?
+  legacyRoNo        String?   @map("legacy_ro_no")
+  legacySourceTable String?   @map("legacy_source_table")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice           Invoice?  @relation(fields: [invoiceId], references: [id])
+  customer          Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([shopId, paidAt])
+  @@index([invoiceId])
+  @@index([shopId, legacyRoNo])
+  @@map("payments")
+}
+
+model AccountReceivable {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String    @map("shop_id") @db.Uuid
+  invoiceId         String?   @map("invoice_id") @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  balance           Decimal   @default(0) @db.Decimal(12, 2)
+  dueAt             DateTime? @map("due_at")
+  status            String    @default("open")
+  legacyRoNo        String?   @map("legacy_ro_no")
+  legacySourceTable String?   @map("legacy_source_table")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice           Invoice?  @relation(fields: [invoiceId], references: [id])
+  customer          Customer  @relation(fields: [customerId], references: [id])
+
+  @@unique([shopId, legacyRoNo])
+  @@unique([invoiceId])
+  @@index([shopId, status])
+  @@index([customerId])
+  @@index([shopId, legacyRoNo])
+  @@index([legacyRoNo])
+  @@map("accounts_receivable")
+}
+
+model Employee {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String        @map("shop_id") @db.Uuid
+  displayName       String        @map("display_name")
+  email             String?
+  role              String        @default("staff")
+  active            Boolean       @default(true)
+  legacySourceTable String?       @map("legacy_source_table")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrders      RepairOrder[]
+
+  @@unique([shopId, email])
+  @@index([shopId, active])
+  @@map("employees")
+}
+
+model LegacyImportRun {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId           String                @map("shop_id") @db.Uuid
+  status           String                @default("pending")
+  sourceLabel      String                @map("source_label")
+  startedAt        DateTime?             @map("started_at")
+  completedAt      DateTime?             @map("completed_at")
+  recordsProcessed Int                   @default(0) @map("records_processed")
+  recordsImported  Int                   @default(0) @map("records_imported")
+  recordsFailed    Int                   @default(0) @map("records_failed")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
+  shop             Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  errors           LegacyImportError[]
+  rawCustomers     RawLegacyCustomer[]
+  rawVehicles      RawLegacyVehicle[]
+  rawFinal         RawLegacyFinal[]
+  rawLaborFinal    RawLegacyLaborFinal[]
+  rawAr            RawLegacyAr[]
+  rawOrderParts    RawLegacyOrderPart[]
+  rawOrderLabor    RawLegacyOrderLabor[]
+
+  @@index([shopId, createdAt])
+  @@map("legacy_import_runs")
+}
+
+model RawLegacyCustomer {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyCustno      String?         @map("legacy_custno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_customers")
+}
+
+model RawLegacyVehicle {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyCustno])
+  @@index([shopId, legacyCarno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_vehicles")
+}
+
+model RawLegacyFinal {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_final")
+}
+
+model RawLegacyLaborFinal {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_labor_final")
+}
+
+model RawLegacyAr {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_ar")
+}
+
+model RawLegacyOrderPart {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  legacyRowKey      String          @map("legacy_row_key")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyRowKey])
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([shopId, legacyCarno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_order_parts")
+}
+
+model RawLegacyOrderLabor {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  legacyImportRunId String          @map("legacy_import_run_id") @db.Uuid
+  legacyRoNo        String?         @map("legacy_ro_no")
+  legacyCustno      String?         @map("legacy_custno")
+  legacyCarno       String?         @map("legacy_carno")
+  legacyRowKey      String          @map("legacy_row_key")
+  rawData           Json            @map("raw_data")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [legacyImportRunId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, legacyRowKey])
+  @@index([shopId, legacyRoNo])
+  @@index([shopId, legacyCustno])
+  @@index([shopId, legacyCarno])
+  @@index([legacyImportRunId])
+  @@map("raw_legacy_order_labor")
+}
+
+model LegacyImportError {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shopId            String          @map("shop_id") @db.Uuid
+  importRunId       String          @map("import_run_id") @db.Uuid
+  legacySourceTable String?         @map("legacy_source_table")
+  legacyRecordId    String?         @map("legacy_record_id")
+  errorCode         String?         @map("error_code")
+  message           String
+  createdAt         DateTime        @default(now()) @map("created_at")
+  shop              Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importRun         LegacyImportRun @relation(fields: [importRunId], references: [id], onDelete: Cascade)
+
+  @@index([importRunId])
+  @@index([shopId, legacySourceTable])
+  @@map("legacy_import_errors")
+}
+=== FILE: src/lib/permissions.ts ===
+import "server-only";
+
+import type { ShopMembershipRole } from "@/generated/prisma/client";
+import matrix from "@/lib/permission-matrix.json";
+import { getCurrentMembership } from "@/lib/data/membership";
+
+export type Permission =
+  | "view_dashboard"
+  | "view_search"
+  | "view_reports"
+  | "edit_customer_vehicle"
+  | "create_repair_order"
+  | "edit_draft_repair_order"
+  | "delete_draft_repair_order"
+  | "finalize_repair_order"
+  | "record_payment"
+  | "edit_shop_settings"
+  | "manage_canned_services"
+  | "view_audit_log"
+  | "manage_staff"
+  | "export_shop_data";
+
+export function hasPermission(role: ShopMembershipRole, permission: Permission) {
+  return (matrix[role] as Permission[]).includes(permission);
+}
+
+export async function requirePermission(permission: Permission) {
+  const access = await getCurrentMembership();
+  if (!access.membership || !hasPermission(access.membership.role, permission)) {
+    throw new Error("You do not have permission to perform this action.");
+  }
+  return access as typeof access & {
+    membership: NonNullable<typeof access.membership>;
+  };
+}
+=== FILE: src/components/new-repair-order-form.tsx ===
+"use client";
+
+import { useMemo, useState } from "react";
+import { createRepairOrder } from "@/app/(app)/repair-orders/actions";
+import { FormSubmitButton } from "@/components/form-submit-button";
+
+type CustomerOption = {
+  id: string;
+  displayName: string;
+  vehicles: Array<{
+    id: string;
+    year: number | null;
+    make: string | null;
+    model: string | null;
+    licensePlate: string | null;
+  }>;
+};
+
+type VehicleSuggestion = { make: string | null; model: string | null };
+
+// A future VIN decoder can enrich these suggestions; inputs must remain freely editable.
+function cleanSuggestion(value: string) {
+  return value.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+export function NewRepairOrderForm({
+  customers,
+  citySuggestions,
+  vehicleSuggestions,
+}: {
+  customers: CustomerOption[];
+  citySuggestions: string[];
+  vehicleSuggestions: VehicleSuggestion[];
+}) {
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear + 2 - 1970 }, (_, index) => currentYear + 1 - index);
+  const initialCustomer = customers[0];
+  const [customerMode, setCustomerMode] = useState<"existing" | "new">(
+    customers.length ? "existing" : "new",
+  );
+  const [customerId, setCustomerId] = useState(initialCustomer?.id ?? "");
+  const [vehicleId, setVehicleId] = useState(
+    initialCustomer?.vehicles[0]?.id ?? "",
+  );
+  const [vehicleMode, setVehicleMode] = useState<"existing" | "new">(
+    initialCustomer?.vehicles.length ? "existing" : "new",
+  );
+  const [newVehicleMake, setNewVehicleMake] = useState("");
+  const vehicles = useMemo(
+    () => customers.find((customer) => customer.id === customerId)?.vehicles ?? [],
+    [customerId, customers],
+  );
+  const makeSuggestions = useMemo(
+    () => Array.from(new Set(vehicleSuggestions.flatMap(({ make }) => make ? [cleanSuggestion(make)] : []))).sort(),
+    [vehicleSuggestions],
+  );
+  const modelSuggestions = useMemo(() => {
+    const normalizedMake = cleanSuggestion(newVehicleMake);
+    return Array.from(new Set(vehicleSuggestions.flatMap(({ make, model }) => {
+      if (!model || (normalizedMake && cleanSuggestion(make ?? "") !== normalizedMake)) return [];
+      return [cleanSuggestion(model)];
+    }))).sort();
+  }, [newVehicleMake, vehicleSuggestions]);
+  const cities = useMemo(
+    () => Array.from(new Set(citySuggestions.map(cleanSuggestion))).sort(),
+    [citySuggestions],
+  );
+
+  function selectCustomer(nextCustomerId: string) {
+    const nextCustomer = customers.find(
+      (customer) => customer.id === nextCustomerId,
+    );
+    setCustomerId(nextCustomerId);
+    setVehicleId(nextCustomer?.vehicles[0]?.id ?? "");
+    setVehicleMode(nextCustomer?.vehicles.length ? "existing" : "new");
+  }
+
+  function selectCustomerMode(nextMode: "existing" | "new") {
+    setCustomerMode(nextMode);
+    if (nextMode === "new") {
+      setVehicleMode("new");
+      setVehicleId("");
+      return;
+    }
+    const customer = customers.find((entry) => entry.id === customerId);
+    setVehicleMode(customer?.vehicles.length ? "existing" : "new");
+    setVehicleId(customer?.vehicles[0]?.id ?? "");
+  }
+
+  return (
+    <form action={createRepairOrder} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-slate-800">Customer</legend>
+        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+          <label className="flex items-center gap-2"><input type="radio" name="customerMode" value="existing" checked={customerMode === "existing"} disabled={!customers.length} onChange={() => selectCustomerMode("existing")} />Select existing customer</label>
+          <label className="flex items-center gap-2"><input type="radio" name="customerMode" value="new" checked={customerMode === "new"} onChange={() => selectCustomerMode("new")} />Add new customer</label>
+        </div>
+        {customerMode === "existing" ? <select id="customerId" name="customerId" aria-label="Existing customer" required value={customerId} onChange={(event) => selectCustomer(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100">
+          {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.displayName}</option>)}
+        </select> : <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">Name<input name="displayName" type="text" maxLength={200} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Phone <span className="font-normal text-slate-500">(optional)</span><input name="phone" type="tel" maxLength={40} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Email <span className="font-normal text-slate-500">(optional)</span><input name="email" type="email" maxLength={254} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800 sm:col-span-2">Address <span className="font-normal text-slate-500">(optional)</span><input name="addressLine1" type="text" maxLength={200} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">City <span className="font-normal text-slate-500">(optional)</span><input name="city" type="text" list="customer-city-suggestions" maxLength={100} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="customer-city-suggestions">{cities.map((city) => <option key={city} value={city} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
+          <label className="text-sm font-semibold text-slate-800">State <span className="font-normal text-slate-500">(optional)</span><input name="state" type="text" maxLength={30} defaultValue="MI" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Postal code <span className="font-normal text-slate-500">(optional)</span><input name="postalCode" type="text" maxLength={20} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        </div>}
+      </fieldset>
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold text-slate-800">Vehicle</legend>
+        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="existing" checked={vehicleMode === "existing"} disabled={customerMode === "new" || !vehicles.length} onChange={() => setVehicleMode("existing")} />Select existing vehicle</label>
+          <label className="flex items-center gap-2"><input type="radio" name="vehicleMode" value="new" checked={vehicleMode === "new"} onChange={() => setVehicleMode("new")} />Add new vehicle</label>
+        </div>
+        {vehicleMode === "existing" ? <select id="vehicleId" name="vehicleId" aria-label="Existing vehicle" required value={vehicleId} onChange={(event) => setVehicleId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900">
+          {vehicles.map((vehicle) => {
+            const description = [vehicle.year, vehicle.make, vehicle.model]
+              .filter(Boolean)
+              .join(" ") || "Vehicle details unavailable";
+            const label = vehicle.licensePlate
+              ? `${description} · ${vehicle.licensePlate}`
+              : description;
+            return <option key={vehicle.id} value={vehicle.id}>{label}</option>;
+          })}
+        </select> : <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-800">Year<select name="year" required defaultValue={currentYear} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal">{yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-800">Make<input name="make" type="text" list="vehicle-make-suggestions" maxLength={100} required value={newVehicleMake} onChange={(event) => setNewVehicleMake(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-make-suggestions">{makeSuggestions.map((make) => <option key={make} value={make} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
+          <label className="text-sm font-semibold text-slate-800">Model<input name="model" type="text" list="vehicle-model-suggestions" maxLength={100} required className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /><datalist id="vehicle-model-suggestions">{modelSuggestions.map((model) => <option key={model} value={model} />)}</datalist><span className="mt-1 block text-xs font-normal text-slate-500">Start typing or choose from previous shop entries.</span></label>
+          <label className="text-sm font-semibold text-slate-800">License plate <span className="font-normal text-slate-500">(optional)</span><input name="licensePlate" type="text" maxLength={30} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">VIN <span className="font-normal text-slate-500">(optional)</span><input name="vin" type="text" maxLength={50} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+          <label className="text-sm font-semibold text-slate-800">Mileage <span className="font-normal text-slate-500">(optional)</span><input name="mileage" type="number" min="0" max="10000000" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 font-normal" /></label>
+        </div>}
+      </fieldset>
+      {customerMode === "new" && <p className="rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800">A new customer must be created with a new vehicle.</p>}
+      <p className="text-sm text-slate-600">This creates a draft only. Parts, labor, and invoice finalization are not included yet.</p>
+      <FormSubmitButton pendingLabel="Creating draft…" disabled={(customerMode === "existing" && !customerId) || (vehicleMode === "existing" && !vehicleId)} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300">Save draft</FormSubmitButton>
+    </form>
+  );
+}
+=== FILE: src/components/app-shell.tsx ===
+import Link from "next/link";
+import { DesktopNavigation, MobileNavigation } from "./app-navigation";
+import { signOut } from "@/app/(app)/actions";
+
+export function AppShell({
+  children,
+  userEmail,
+  canViewReports,
+  canViewAdmin,
+}: {
+  children: React.ReactNode;
+  userEmail: string;
+  canViewReports: boolean;
+  canViewAdmin: boolean;
+}) {
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white print:hidden lg:hidden">
+        <div className="flex h-16 items-center justify-between px-5">
+          <Link href="/dashboard" className="text-lg font-bold tracking-tight">
+            Car Doc
+          </Link>
+          <form action={signOut}>
+            <button
+              type="submit"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+        <MobileNavigation canViewReports={canViewReports} canViewAdmin={canViewAdmin} />
+      </header>
+
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white p-5 print:hidden lg:flex lg:flex-col">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-600 text-sm font-bold text-white">
+            CD
+          </span>
+          <span>
+            <span className="block text-lg font-bold tracking-tight">Car Doc</span>
+            <span className="block text-xs text-slate-500">Shop workspace</span>
+          </span>
+        </Link>
+
+        <DesktopNavigation canViewReports={canViewReports} canViewAdmin={canViewAdmin} />
+
+        <form action="/search" className="mt-6">
+          <label htmlFor="sidebar-shop-search" className="sr-only">Search shop</label>
+          <input id="sidebar-shop-search" name="q" type="search" placeholder="Search shop…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        </form>
+
+        <div className="mt-auto border-t border-slate-200 pt-5">
+          <p className="truncate text-sm font-medium text-slate-900">
+            {userEmail}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Signed in</p>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="mt-4 text-sm font-medium text-slate-600 hover:text-slate-950"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <main className="print:pl-0 lg:pl-64">
+        <div className="mx-auto max-w-7xl px-5 py-8 print:max-w-none print:p-0 sm:px-8 lg:px-10 lg:py-10">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+=== FILE: src/app/layout.tsx ===
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Car Doc",
+  description: "A cloud-first workspace for auto repair shops.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+=== FILE: package.json ===
+{
+  "name": "cardoc",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:seed": "node --env-file=.env.local prisma/seed.mjs",
+    "legacy:import:customers-vehicles": "node --env-file=.env.local scripts/import-customers-vehicles.mjs",
+    "legacy:transform:customers-vehicles": "node --env-file=.env.local scripts/transform-customers-vehicles.mjs",
+    "legacy:import:invoices": "node --env-file=.env.local scripts/import-invoices.mjs",
+    "legacy:transform:invoices": "node --env-file=.env.local scripts/transform-invoices.mjs",
+    "legacy:import:open-orders": "node --env-file=.env.local scripts/import-open-orders.mjs",
+    "legacy:transform:open-orders": "node --env-file=.env.local scripts/transform-open-orders.mjs",
+    "legacy:cutover:dry-run": "node --env-file=.env.local scripts/legacy-cutover.mjs --dry-run",
+    "legacy:cutover:backup": "node --env-file=.env.local scripts/legacy-cutover.mjs --backup --report",
+    "legacy:cutover:verify": "node --env-file=.env.local scripts/legacy-cutover.mjs --verify --report"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@supabase/ssr": "^0.12.1",
+    "@supabase/supabase-js": "^2.110.3",
+    "next": "16.2.10",
+    "pg": "^8.22.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
