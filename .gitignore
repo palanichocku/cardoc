@@ -41,3 +41,7 @@ schema_summary.json
 file_inventory*.txt
 dbfiles.txt
 config_report_files.txt
+
+# Local cutover artifacts (may contain production database data)
+backups/
+reports/
