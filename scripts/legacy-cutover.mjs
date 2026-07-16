@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { reconcileCustomerVehicleRows } from "./lib/customer-vehicle-transform.mjs";
+import { reconcileInvoiceRows, reconcileOpenOrderRows } from "./lib/legacy-operational-reconciliation.mjs";
 
 const CONFIRMATION = "RESET_CAR_DOC_OPERATIONAL_DATA";
 const REQUIRED_SOURCES = [
@@ -95,14 +96,20 @@ async function sourceCounts(sourceFolder) {
   }
   let reconciliation = null;
   if (validationIssues === 0) {
-    const [customerSource, vehicleSource] = await Promise.all([
-      readDbfForReconciliation(resolve(sourceFolder, "Cust.DBF"), "customer"),
-      readDbfForReconciliation(resolve(sourceFolder, "vehicles.DBF"), "vehicle"),
+    const [customerSource, vehicleSource, finalSource, laborSource, arSource, orderPartSource, orderLaborSource] = await Promise.all([
+      readDbfForReconciliation(resolve(sourceFolder, "Cust.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "vehicles.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "FINAL.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "laborfinal.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "ar.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "orders.DBF")),
+      readDbfForReconciliation(resolve(sourceFolder, "LABORorder.DBF")),
     ]);
     reconciliation = {
       ...reconcileCustomerVehicleRows(customerSource.rows, vehicleSource.rows),
       deletedCustomerRows: customerSource.deletedRows,
       deletedVehicleRows: vehicleSource.deletedRows,
+      sources: { finalSource, laborSource, arSource, orderPartSource, orderLaborSource },
     };
   }
   return { counts, validationIssues, reconciliation };
@@ -135,7 +142,7 @@ function legacyIdentifier(rawData, candidates) {
   return entry?.[1] == null ? null : String(entry[1]).trim() || null;
 }
 
-async function readDbfForReconciliation(path, kind) {
+async function readDbfForReconciliation(path) {
   const file = await readFile(path);
   const recordCount = file.readUInt32LE(4);
   const headerLength = file.readUInt16LE(8);
@@ -159,7 +166,8 @@ async function readDbfForReconciliation(path, kind) {
     rows.push({
       rawData,
       legacyCustno: legacyIdentifier(rawData, ["CUSTNO", "CUSTOMERNO"]),
-      legacyCarno: kind === "vehicle" ? legacyIdentifier(rawData, ["CARNO", "VEHICLENO"]) : null,
+      legacyCarno: legacyIdentifier(rawData, ["CARNO", "VEHICLENO"]),
+      legacyRoNo: legacyIdentifier(rawData, ["RONO", "RO", "RONUMBER", "INVOICE", "INVNO", "INVNUM"]),
     });
   }
   return { rows, deletedRows };
@@ -193,6 +201,63 @@ function printReconciliation(source, currentCounts) {
   console.log(`current database rows that would be deleted: ${currentCounts.vehicles}`);
   console.log(`current DB minus expected post-reload rows: ${currentCounts.vehicles - result.vehicles.length}`);
   console.log("Raw DBF rows may be higher than clean imported rows because invalid, blank, duplicate, or unlinked legacy rows are skipped during transformation.");
+}
+
+function reconciliationLine(label, raw, expected, current, reasons) {
+  console.log(`${label} reconciliation`);
+  console.log(`raw source rows: ${raw}`);
+  console.log(`expected clean transformed rows: ${expected}`);
+  console.log(`skipped/invalid/collapsed rows: ${raw - expected}`);
+  for (const [reason, count] of reasons) console.log(`  ${reason}: ${count}`);
+  console.log(`current database rows that would be deleted: ${current}`);
+  console.log(`current DB minus expected post-reload rows: ${current - expected}`);
+}
+
+function printOperationalReconciliation(source, currentCounts) {
+  const reconciliation = source.reconciliation;
+  if (!reconciliation?.sources) return;
+  const { finalSource, laborSource, arSource, orderPartSource, orderLaborSource } = reconciliation.sources;
+  const customerIds = new Set(reconciliation.customers.map((row) => row.legacyCustno));
+  const vehicleIds = new Set(reconciliation.vehicles.map((row) => row.legacyCarno));
+  const invoices = reconcileInvoiceRows({
+    finalRows: finalSource.rows, laborRows: laborSource.rows, arRows: arSource.rows,
+    customerIds, vehicleIds,
+  });
+  reconciliationLine("invoice", source.counts.get("FINAL.DBF") ?? 0, invoices.invoices, currentCounts.invoices, [
+    ["source-deleted rows", finalSource.deletedRows],
+    ["blank RO rows", invoices.reasons.invoiceBlankRo],
+    ["additional FINAL rows for an existing RO", invoices.reasons.invoiceAdditionalRows],
+    ["missing customer link", invoices.reasons.invoiceMissingCustomer],
+    ["missing vehicle link (invoice still imports)", invoices.reasons.invoiceMissingVehicle],
+  ]);
+  reconciliationLine("invoice parts", source.counts.get("FINAL.DBF") ?? 0, invoices.parts, currentCounts.invoice_parts, [
+    ["source-deleted rows", finalSource.deletedRows],
+    ["blank part description/number", invoices.reasons.partBlankDescription],
+    ["missing valid invoice link", invoices.reasons.partMissingInvoice],
+  ]);
+  reconciliationLine("invoice labor", source.counts.get("laborfinal.DBF") ?? 0, invoices.labor, currentCounts.invoice_labor, [
+    ["source-deleted rows", laborSource.deletedRows],
+    ["missing valid invoice/RO link", invoices.reasons.laborMissingInvoice],
+  ]);
+  reconciliationLine("accounts receivable", source.counts.get("ar.DBF") ?? 0, invoices.ar, currentCounts.accounts_receivable, [
+    ["source-deleted rows", arSource.deletedRows],
+    ["blank RO rows", invoices.reasons.arBlankRo],
+    ["additional AR rows for an existing RO", invoices.reasons.arAdditionalRows],
+    ["missing valid invoice/customer link", invoices.reasons.arMissingInvoiceOrCustomer],
+  ]);
+
+  const openOrders = reconcileOpenOrderRows({
+    partRows: orderPartSource.rows, laborRows: orderLaborSource.rows, customerIds, vehicleIds,
+  });
+  const rawOpenRows = (source.counts.get("orders.DBF") ?? 0) + (source.counts.get("LABORorder.DBF") ?? 0);
+  reconciliationLine("open repair orders", rawOpenRows, openOrders.orders, currentCounts.repair_orders, [
+    ["source-deleted rows", orderPartSource.deletedRows + orderLaborSource.deletedRows],
+    ["blank RO rows", openOrders.reasons.blankRoRows],
+    ["additional part/labor rows within an RO", openOrders.reasons.additionalRows],
+    ["order groups missing customer link", openOrders.reasons.missingCustomerLink],
+    ["order groups missing vehicle link", openOrders.reasons.missingVehicleLink],
+    ["invalid/unlinked order groups", openOrders.reasons.invalidOrderGroups],
+  ]);
 }
 
 async function databaseCounts(prisma, shopId) {
@@ -318,7 +383,10 @@ async function main() {
     if (wantsSnapshot || wantsReset || (dryRun && !wantsVerify)) {
       printCounts(dryRun ? "rows that would be deleted" : "pre-reset snapshot", before);
     }
-    if (dryRun && source) printReconciliation(source, before);
+    if (dryRun && source) {
+      printReconciliation(source, before);
+      printOperationalReconciliation(source, before);
+    }
 
     if (dryRun) {
       const after = await databaseCounts(prisma, shop.id);
