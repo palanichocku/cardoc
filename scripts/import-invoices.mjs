@@ -3,31 +3,33 @@ import { resolve } from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+function argument(name) {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
+
+const sourceFolder = argument("--source");
+const sourcePath = (name) => sourceFolder ? resolve(sourceFolder, name) : `OriginalWinApp/Shopman32/data/${name}`;
 const SOURCES = [
   {
     label: "FINAL",
-    path: "OriginalWinApp/Shopman32/data/FINAL.DBF",
+    path: sourcePath("FINAL.DBF"),
     model: "rawLegacyFinal",
   },
   {
     label: "Labor final",
-    path: "OriginalWinApp/Shopman32/data/laborfinal.DBF",
-    memoPath: "OriginalWinApp/Shopman32/data/laborfinal.FPT",
+    path: sourcePath("laborfinal.DBF"),
+    memoPath: sourcePath("laborfinal.FPT"),
     model: "rawLegacyLaborFinal",
   },
   {
     label: "AR",
-    path: "OriginalWinApp/Shopman32/data/ar.DBF",
+    path: sourcePath("ar.DBF"),
     model: "rawLegacyAr",
   },
 ];
 const BATCH_SIZE = 100;
 const decoder = new TextDecoder("windows-1252");
-
-function argument(name) {
-  const index = process.argv.indexOf(name);
-  return index === -1 ? undefined : process.argv[index + 1];
-}
 
 function parseFields(header, headerLength) {
   const fields = [];

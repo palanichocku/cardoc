@@ -1,7 +1,12 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const SHOP_ID = "00000000-0000-4000-8000-000000000001";
+function argument(name) {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
+
+const SHOP_ID = argument("--shop-id") ?? "00000000-0000-4000-8000-000000000001";
 
 function textValue(rawData, field) {
   if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) return null;

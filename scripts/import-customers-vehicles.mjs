@@ -4,8 +4,6 @@ import { createHash } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const CUSTOMER_DBF = "OriginalWinApp/Shopman32/data/Cust.DBF";
-const VEHICLE_DBF = "OriginalWinApp/Shopman32/data/vehicles.DBF";
 const BATCH_SIZE = 100;
 const decoder = new TextDecoder("windows-1252");
 
@@ -13,6 +11,10 @@ function getArgument(name) {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
 }
+
+const sourceFolder = getArgument("--source");
+const CUSTOMER_DBF = sourceFolder ? resolve(sourceFolder, "Cust.DBF") : "OriginalWinApp/Shopman32/data/Cust.DBF";
+const VEHICLE_DBF = sourceFolder ? resolve(sourceFolder, "vehicles.DBF") : "OriginalWinApp/Shopman32/data/vehicles.DBF";
 
 function parseFields(file, headerLength) {
   const fields = [];

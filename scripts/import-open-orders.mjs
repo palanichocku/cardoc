@@ -4,26 +4,28 @@ import { createHash } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const SHOP_ID = "00000000-0000-4000-8000-000000000001";
 const BATCH_SIZE = 100;
 const decoder = new TextDecoder("windows-1252");
-const SOURCES = [
-  {
-    label: "open order part",
-    path: "OriginalWinApp/Shopman32/data/orders.DBF",
-    model: "rawLegacyOrderPart",
-  },
-  {
-    label: "open order labor",
-    path: "OriginalWinApp/Shopman32/data/LABORorder.DBF",
-    model: "rawLegacyOrderLabor",
-  },
-];
-
 function argument(name) {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
 }
+
+const sourceFolder = argument("--source");
+const sourcePath = (name) => sourceFolder ? resolve(sourceFolder, name) : `OriginalWinApp/Shopman32/data/${name}`;
+const SHOP_ID = argument("--shop-id") ?? "00000000-0000-4000-8000-000000000001";
+const SOURCES = [
+  {
+    label: "open order part",
+    path: sourcePath("orders.DBF"),
+    model: "rawLegacyOrderPart",
+  },
+  {
+    label: "open order labor",
+    path: sourcePath("LABORorder.DBF"),
+    model: "rawLegacyOrderLabor",
+  },
+];
 
 function parseFields(file, headerLength) {
   const fields = [];

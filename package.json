@@ -14,7 +14,9 @@
     "legacy:import:invoices": "node --env-file=.env.local scripts/import-invoices.mjs",
     "legacy:transform:invoices": "node --env-file=.env.local scripts/transform-invoices.mjs",
     "legacy:import:open-orders": "node --env-file=.env.local scripts/import-open-orders.mjs",
-    "legacy:transform:open-orders": "node --env-file=.env.local scripts/transform-open-orders.mjs"
+    "legacy:transform:open-orders": "node --env-file=.env.local scripts/transform-open-orders.mjs",
+    "legacy:cutover:dry-run": "node --env-file=.env.local scripts/legacy-cutover.mjs --dry-run",
+    "legacy:cutover:verify": "node --env-file=.env.local scripts/legacy-cutover.mjs --verify"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
