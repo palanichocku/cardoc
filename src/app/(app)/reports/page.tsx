@@ -40,13 +40,13 @@ export default async function ReportsPage({
   if (!report) return null;
 
   const cards = [
-    ["Invoice count", report.invoiceTotals._count._all.toLocaleString()],
-    ["Gross sales", formatMoney(report.invoiceTotals._sum.total)],
-    ["Parts total", formatMoney(report.invoiceTotals._sum.partsTotal)],
-    ["Labor total", formatMoney(report.invoiceTotals._sum.laborTotal)],
-    ["Tax total", formatMoney(report.invoiceTotals._sum.taxTotal)],
-    ["Payments received", formatMoney(report.paymentTotals._sum.amount)],
-    ["Open AR balance", formatMoney(report.arTotals._sum.balance)],
+    ["Invoice Count", report.invoiceTotals._count._all.toLocaleString()],
+    ["Gross Sales", formatMoney(report.invoiceTotals._sum.total)],
+    ["Parts Total", formatMoney(report.invoiceTotals._sum.partsTotal)],
+    ["Labor Total", formatMoney(report.invoiceTotals._sum.laborTotal)],
+    ["Tax Total", formatMoney(report.invoiceTotals._sum.taxTotal)],
+    ["Payments Received", formatMoney(report.invoiceTotals._sum.paidTotal)],
+    ["Receivables", formatMoney(report.receivablesTotal)],
   ];
 
   return <>
@@ -60,18 +60,12 @@ export default async function ReportsPage({
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950">{value}</p></article>)}
     </section>
+    <p className="mt-3 text-xs text-slate-500">Payments Received reflects paid totals on invoices in the selected date range.</p>
 
     <ReportSection title="Invoices in range" empty="No invoices were recorded in this date range." headings={["Invoice / RO", "Date", "Status", "Parts", "Labor", "Total"]}>
       {report.invoices.map((invoice) => <tr key={invoice.id}><td className="px-5 py-4"><Link href={`/invoices/${invoice.id}`} className="font-semibold text-sky-700 hover:text-sky-800">RO #{invoice.repairOrderNumber ?? invoice.legacyRoNo ?? "Not recorded"}</Link></td><td className="px-5 py-4 text-slate-600">{formatDate(invoice.invoiceDate)}</td><td className="px-5 py-4 capitalize text-slate-600">{invoice.status}</td><td className="px-5 py-4 text-right">{formatMoney(invoice.partsTotal)}</td><td className="px-5 py-4 text-right">{formatMoney(invoice.laborTotal)}</td><td className="px-5 py-4 text-right font-semibold">{formatMoney(invoice.total)}</td></tr>)}
     </ReportSection>
 
-    <ReportSection title="Payments in range" empty="No payments were recorded in this date range." headings={["Invoice / RO", "Date", "Method", "Amount"]}>
-      {report.payments.map((payment) => <tr key={payment.id}><td className="px-5 py-4">{payment.invoice ? <Link href={`/invoices/${payment.invoice.id}`} className="font-semibold text-sky-700 hover:text-sky-800">RO #{payment.invoice.repairOrderNumber ?? payment.invoice.legacyRoNo ?? "Not recorded"}</Link> : "Invoice not linked"}</td><td className="px-5 py-4 text-slate-600">{formatDate(payment.paidAt)}</td><td className="px-5 py-4 capitalize text-slate-600">{payment.method ?? "Not specified"}</td><td className="px-5 py-4 text-right font-semibold">{formatMoney(payment.amount)}</td></tr>)}
-    </ReportSection>
-
-    <ReportSection title={`Open accounts receivable (${report.arTotals._count._all.toLocaleString()})`} empty="No open receivables remain." headings={["Invoice / RO", "Date", "Status", "Total", "Paid", "Balance"]}>
-      {report.receivables.map((row) => <tr key={row.id}><td className="px-5 py-4">{row.invoice ? <Link href={`/invoices/${row.invoice.id}`} className="font-semibold text-sky-700 hover:text-sky-800">RO #{row.invoice.repairOrderNumber ?? row.invoice.legacyRoNo ?? "Not recorded"}</Link> : "Invoice not linked"}</td><td className="px-5 py-4 text-slate-600">{formatDate(row.invoice?.invoiceDate)}</td><td className="px-5 py-4 capitalize text-slate-600">{row.status}</td><td className="px-5 py-4 text-right">{formatMoney(row.invoice?.total)}</td><td className="px-5 py-4 text-right">{formatMoney(row.invoice?.paidTotal)}</td><td className="px-5 py-4 text-right font-semibold">{formatMoney(row.balance)}</td></tr>)}
-    </ReportSection>
   </>;
 }
 
